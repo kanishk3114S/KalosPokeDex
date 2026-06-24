@@ -1,55 +1,54 @@
-# 🌟 The Kalos MegaDex
+# 🌟 Kalos MegaDex
 
-Welcome to **The Kalos MegaDex**, a highly polished, professional, and visually stunning web application designed for exploring Pokémon from the Kalos region, their forms, and especially their Mega Evolutions! 
+Welcome to **The Kalos MegaDex**—a premium, high-performance web application designed for exploring Pokémon from the Kalos region. Immerse yourself in a visually stunning interface featuring real-time data, dynamic animations, and a seamless "Shiny" hunting experience.
 
-Built with modern web technologies, this project features incredibly smooth animations, a glassmorphism design system, and an authentic "dark mode" aesthetic suitable for top-tier applications.
+---
 
-## ✨ Features
+## 🎨 Design Philosophy
+Built with a focus on modern aesthetics, the Kalos MegaDex features:
+*   **Deep Dark Slate Theme**: An immersive, high-contrast UI with glassmorphism effects.
+*   **Buttery Smooth Interactions**: Powered by **Framer Motion** for fluid page transitions and hover effects.
+*   **Fully Responsive**: A mobile-first design that scales beautifully from phones to ultrawide monitors.
 
-- **Beautiful User Interface**: A premium "Deep Dark Slate" theme featuring beautiful white-glow hover effects and glass cards.
-- **Authentic Mega Evolution Icons**: Fully customized, vibrant SVG Mega Stone icons and classic red/white Pokéballs.
-- **Type Display**: Pokémon cards dynamically fetch and elegantly display their elemental types using unique emoji logos and corresponding color styles.
-- **Team Builder**: Interactively draft your own Kalos roster and analyze their combined statistics in real-time.
-- **Smooth Animations**: Powered by Framer Motion, every transition, hover effect, and page load is lightning-fast and buttery smooth.
-- **Shiny Mode**: A global toggle that instantly switches the entire Pokédex to display shiny variants!
-- **Fully Responsive**: Optimized for desktops, tablets, and mobile devices.
+## ✨ Core Features
+*   **Dynamic Pokédex**: Fetch real-time data from the official **PokeAPI**.
+*   **Mega Evolution Hub**: A dedicated section to explore unique forms and Mega Stones.
+*   **Team Builder**: Strategically draft your Kalos roster with real-time stat analysis.
+*   **Global Shiny Toggle**: Switch between standard and rare shiny variants with one click.
+*   **Type System**: Elegant elemental icons with color-coded typography.
 
 ## 🛠 Tech Stack
+*   **Frontend**: React.js (Vite), Tailwind CSS v4
+*   **Animation**: Framer Motion
+*   **Data**: PokeAPI
+*   **Deployment**: Vercel
 
-- **React.js** (Vite)
-- **Tailwind CSS v4** (with deeply custom utility configurations)
-- **Framer Motion** (for buttery smooth animations)
-- **PokeAPI** (for fetching real-time, comprehensive Pokémon data)
+## 🚀 Quick Start
+Get the project running locally in minutes:
 
-## 🚀 Quick Start (Local Development)
+```bash
+# 1. Clone the repository
+git clone [https://github.com/kanishk3114S/KalosPokeDex.git](https://github.com/kanishk3114S/KalosPokeDex.git)
+cd KalosPokeDex
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/kalos-dex.git
-   cd kalos-dex/frontend
-   ```
+# 2. Install dependencies
+npm install
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+# 3. Start the development server
+npm run dev
+🌐 Deployment
+This project is fully optimized for Vercel.
 
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
+Import your GitHub repository into the Vercel Dashboard.
 
-## 🌐 Deployment (Vercel Ready)
+Ensure the build command is set to npm run build and the output directory is dist.
 
-This project is configured out-of-the-box for **Vercel** deployment. 
+Add your environment variables (e.g., MONGO_URI, JWT_SECRET) in the project Settings > Environment Variables tab.
 
-The included `vercel.json` ensures that Single Page Application (SPA) routing works perfectly. Just import this repository into your Vercel dashboard and click **Deploy**!
+Hit Deploy and your app will be live!
 
-## 👨‍💻 Created By
+👨‍💻 Created By
+Kanishk3114S
+GitHub | LinkedIn | LeetCode | Instagram
 
-**Kanishk3114S**
-
-- [GitHub](https://github.com/dashboard)
-- [LinkedIn](https://www.linkedin.com/in/kanishk-sharma-b0912735a/)
-- [LeetCode](https://leetcode.com/u/KanishkSharma3114/)
-- [Instagram](https://www.instagram.com/kanishk_x_sharma/?hl=en)
+If you enjoyed this project, please consider giving it a ⭐!
