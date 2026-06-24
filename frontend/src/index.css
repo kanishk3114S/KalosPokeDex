@@ -1,0 +1,103 @@
+/* Import Outfit font */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Outfit', system-ui, sans-serif;
+}
+
+:root {
+  --color-primary: #0F172A; /* Slate 900 for lighter professional dark */
+  --color-bg-dark: #020617; /* Slate 950 for pitch black */
+  --color-bg-light: #F1F5F9; /* Very light slate for contrast */
+  --color-text-dark: #F8FAFC; 
+  --color-text-light: #1E293B; 
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-light);
+  color: var(--color-text-light);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark {
+  background-color: var(--color-primary);
+  color: var(--color-text-dark);
+}
+
+body.pitch-black {
+  background-color: var(--color-bg-dark);
+  color: var(--color-text-dark);
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+}
+
+body.dark .glass, body.pitch-black .glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Wavy Hover Animation */
+@keyframes wave-aura {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.wavy-hover {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.wavy-hover::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 20%,
+    rgba(0, 229, 255, 0.05) 40%,
+    rgba(0, 229, 255, 0.15) 50%,
+    rgba(0, 229, 255, 0.05) 60%,
+    transparent 80%
+  );
+  background-size: 200% 200%;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.wavy-hover:hover::before {
+  opacity: 1;
+  animation: wave-aura 3s infinite linear;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 229, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* Fade-in for page transitions */
+.page-enter { opacity: 0; transform: translateY(20px); }
+.page-enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.5s, transform 0.5s; }
+.page-exit { opacity: 1; transform: translateY(0); }
+.page-exit-active { opacity: 0; transform: translateY(-20px); transition: opacity 0.5s, transform 0.5s; }
+
