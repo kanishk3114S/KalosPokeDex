@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../context/ThemeContext';
+import { useFavorites } from '../context/FavoritesContext';
+import { Heart } from 'lucide-react';
 
 const typeConfig = {
   normal: { color: 'bg-stone-500', icon: '⏺️' },
@@ -24,9 +26,10 @@ const typeConfig = {
   fairy: { color: 'bg-pink-300 text-black', icon: '✨' },
 };
 
-const PokemonCard = ({ pokemon }) => {
+const PokemonCard = ({ pokemon, contextList = [] }) => {
   const navigate = useNavigate();
   const { isShiny } = useTheme();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [isHovered, setIsHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [types, setTypes] = useState([]);
@@ -94,24 +97,37 @@ const PokemonCard = ({ pokemon }) => {
 
   const currentImg = imgError ? staticImg : (isHovered ? animatedImg : staticImg);
 
+  const favStatus = isFavorite(pokemon.name);
+
   return (
     <div 
-      onClick={() => navigate(`/pokemon/${pokemon.name}`)}
+      onClick={() => navigate(`/pokemon/${pokemon.name}`, { state: { currentList: contextList } })}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      // Replaced 'glass hover-wave' with our new 'bg-[#131B2F] wavy-hover'
       className="scale-90 wavy-hover rounded-3xl p-6 cursor-pointer flex flex-col items-center group relative overflow-hidden border border-white/5 hover:border-white/40 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] transition-all duration-300 glass"
     >
       <audio ref={audioRef} src={audioUrl} preload="none"></audio>
 
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleFavorite(pokemon.name);
+        }}
+        className="absolute top-4 right-4 z-30 p-2 rounded-full hover:bg-white/10 transition-colors"
+      >
+        <Heart 
+          size={20} 
+          className={favStatus ? "fill-pink-500 text-pink-500 drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" : "text-gray-400"} 
+        />
+      </button>
+
       {isAshPokemon && (
-        // Updated Ash badge to match the dark aesthetic
-        <div className="absolute top-4 right-4 text-[8px] font-bold tracking-widest text-red-400 bg-red-950/40 px-3 py-1 rounded-full z-20 shadow-sm border border-red-500/30">
+        <div className="absolute top-4 left-4 text-[8px] font-bold tracking-widest text-red-400 bg-red-950/40 px-3 py-1 rounded-full z-20 shadow-sm border border-red-500/30">
           ASH'S POKÉMON
         </div>
       )}
       
-      <div className="relative w-40 h-40 mb-6 flex items-center justify-center">
+      <div className="relative w-40 h-40 mb-6 flex items-center justify-center mt-4">
         <div className={`absolute inset-0 rounded-full group-hover:scale-110 transition-transform duration-300 ease-out ${circleBg}`}></div>
         <img 
           src={currentImg} 

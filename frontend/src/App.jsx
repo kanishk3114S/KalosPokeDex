@@ -8,6 +8,7 @@ import Navbar from './components/Navbar';
 import Credits from './components/Credits';
 import MegaDex from './pages/MegaDex';
 import TeamBuilder from './pages/TeamBuilder';
+import { FavoritesProvider } from './context/FavoritesContext';
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -52,7 +53,9 @@ const AnimatedRoutes = () => {
 function App() {
   return (
     <Router>
-      <AnimatedRoutes />
+      <FavoritesProvider>
+        <AnimatedRoutes />
+      </FavoritesProvider>
     </Router>
   );
 }

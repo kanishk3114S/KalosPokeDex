@@ -19,7 +19,6 @@ const TeamBuilder = () => {
   }, [team]);
 
   useEffect(() => {
-    // Fetch Kalos Native and Megas
     const fetchPool = async () => {
       try {
         const [kalosRes, megaRes] = await Promise.all([
@@ -32,28 +31,18 @@ const TeamBuilder = () => {
         
         let combined = [...kalosList, { name: 'greninja-ash', url: 'https://pokeapi.co/api/v2/pokemon/10116/' }, ...megaList];
         
-        // Fetch detailed stats for all to allow Analytics
-        const detailed = await Promise.all(
-          combined.map(async (p) => {
-            const detailRes = await axios.get(p.url);
-            const d = detailRes.data;
-            const idStr = p.url.split('/').filter(Boolean).pop();
-            return {
-              name: p.name,
-              id: parseInt(idStr),
-              hp: d.stats[0].base_stat,
-              attack: d.stats[1].base_stat,
-              defense: d.stats[2].base_stat,
-              spAtk: d.stats[3].base_stat,
-              spDef: d.stats[4].base_stat,
-              speed: d.stats[5].base_stat,
-              sprite: d.sprites.other['official-artwork'].front_default || d.sprites.front_default,
-              types: d.types.map(t => t.type.name)
-            };
-          })
-        );
+        // Instantly map basic data without fetching 150 detailed stats
+        const instantPool = combined.map(p => {
+          const idStr = p.url.split('/').filter(Boolean).pop();
+          return {
+            name: p.name,
+            url: p.url,
+            id: parseInt(idStr),
+            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${idStr}.png`
+          };
+        });
         
-        setAvailablePokemon(detailed);
+        setAvailablePokemon(instantPool);
       } catch (err) {
         console.error("Failed fetching pool", err);
       }
@@ -66,12 +55,45 @@ const TeamBuilder = () => {
     setIsModalOpen(true);
   };
 
-  const selectPokemon = (p) => {
-    const newTeam = [...team];
-    newTeam[selectedSlotIndex] = p;
-    setTeam(newTeam);
+  const selectPokemon = async (p) => {
     setIsModalOpen(false);
     setSearchTerm('');
+    
+    // Add temporary placeholder to team slot
+    const tempTeam = [...team];
+    tempTeam[selectedSlotIndex] = { 
+      ...p, 
+      loading: true,
+      hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 
+    };
+    setTeam([...tempTeam]);
+
+    try {
+      const detailRes = await axios.get(p.url);
+      const d = detailRes.data;
+      
+      const detailedPokemon = {
+        name: p.name,
+        id: p.id,
+        hp: d.stats?.[0]?.base_stat || 0,
+        attack: d.stats?.[1]?.base_stat || 0,
+        defense: d.stats?.[2]?.base_stat || 0,
+        spAtk: d.stats?.[3]?.base_stat || 0,
+        spDef: d.stats?.[4]?.base_stat || 0,
+        speed: d.stats?.[5]?.base_stat || 0,
+        sprite: d.sprites?.other?.['official-artwork']?.front_default || d.sprites?.front_default || p.sprite,
+        types: d.types?.map(t => t.type.name) || []
+      };
+
+      const finalTeam = [...team];
+      finalTeam[selectedSlotIndex] = detailedPokemon;
+      setTeam([...finalTeam]);
+    } catch (err) {
+      console.error("Failed to fetch detailed stats", err);
+      const revertTeam = [...team];
+      revertTeam[selectedSlotIndex] = null;
+      setTeam([...revertTeam]);
+    }
   };
 
   const removePokemon = (index, e) => {
@@ -120,7 +142,11 @@ const TeamBuilder = () => {
                 >
                   X
                 </button>
-                <img src={member.sprite} alt={member.name} className="w-24 h-24 object-contain drop-shadow-md mb-2 group-hover:scale-110 transition-transform" />
+                <img 
+                  src={member.sprite} 
+                  alt={member.name} 
+                  className={`w-24 h-24 object-contain drop-shadow-md mb-2 transition-all ${member.loading ? 'opacity-50 animate-pulse' : 'group-hover:scale-110'}`} 
+                />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-200 truncate w-full text-center px-2">
                   {member.name.replace('-', ' ')}
                 </span>

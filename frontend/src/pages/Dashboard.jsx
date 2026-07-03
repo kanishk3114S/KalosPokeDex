@@ -3,11 +3,15 @@ import axios from 'axios';
 import PokemonCard from '../components/PokemonCard';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useFavorites } from '../context/FavoritesContext';
+import { Heart } from 'lucide-react';
 
 const Dashboard = () => {
   const [pokemon, setPokemon] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const { isFavorite } = useFavorites();
   
   const [sortAttribute, setSortAttribute] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
@@ -97,7 +101,11 @@ const Dashboard = () => {
     );
   }
 
-  let displayedPokemon = pokemon.filter(p => p.name.includes(searchTerm.toLowerCase()));
+  let displayedPokemon = pokemon.filter(p => {
+    const matchesSearch = p.name.includes(searchTerm.toLowerCase());
+    const matchesFav = showFavoritesOnly ? isFavorite(p.name) : true;
+    return matchesSearch && matchesFav;
+  });
 
   displayedPokemon.sort((a, b) => {
     let valA = a[sortAttribute];
@@ -156,15 +164,24 @@ const Dashboard = () => {
       
       {/* Controls - Smaller & Z-index fixed */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10 glass p-3 rounded-3xl relative z-50">
-        <div className="relative w-full flex-1">
-          <svg className="w-4 h-4 absolute left-4 top-1/2 transform -translate-y-1/2 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-full border border-[rgba(0,229,255,0.2)] bg-[rgba(0,0,0,0.4)] text-[var(--color-text-main)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-medium"
-          />
+        <div className="relative w-full flex-1 flex gap-2">
+          <div className="relative w-full">
+            <svg className="w-4 h-4 absolute left-4 top-1/2 transform -translate-y-1/2 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-full border border-[rgba(0,229,255,0.2)] bg-[rgba(0,0,0,0.4)] text-[var(--color-text-main)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-medium"
+            />
+          </div>
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className={`px-4 py-2 rounded-full border flex items-center justify-center transition-all ${showFavoritesOnly ? 'bg-pink-500/20 border-pink-500 text-pink-400' : 'border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.4)] text-gray-400 hover:border-pink-500 hover:text-pink-400'}`}
+            title="Toggle Favorites"
+          >
+            <Heart size={16} className={showFavoritesOnly ? 'fill-pink-400' : ''} />
+          </button>
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto relative" ref={sortDropdownRef}>
@@ -217,7 +234,7 @@ const Dashboard = () => {
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-0"
         >
           {displayedPokemon.map((p) => (
-            <PokemonCard key={p.name} pokemon={p} />
+            <PokemonCard key={p.name} pokemon={p} contextList={displayedPokemon.map(dp => dp.name)} />
           ))}
         </motion.div>
       )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
@@ -7,11 +7,16 @@ import { useTheme } from '../context/ThemeContext';
 const PokemonDetail = () => {
   const { id } = useParams(); 
   const navigate = useNavigate();
+  const location = useLocation();
   const { isShiny } = useTheme();
   const [data, setData] = useState(null);
   const [trivia, setTrivia] = useState('');
   const [evolutionChain, setEvolutionChain] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   const parseEvoDetails = (details) => {
     if (!details || details.length === 0) return '';
@@ -115,6 +120,23 @@ const PokemonDetail = () => {
   const shinyImg = data.sprites.other['official-artwork'].front_shiny || normalImg;
   const displayImg = isShiny ? shinyImg : normalImg;
 
+  const currentList = location.state?.currentList || [];
+  const currentIndex = currentList.indexOf(id);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex !== -1 && currentIndex < currentList.length - 1;
+
+  const handlePrev = () => {
+    if (hasPrev) {
+      navigate(`/pokemon/${currentList[currentIndex - 1]}`, { state: { currentList } });
+    }
+  };
+
+  const handleNext = () => {
+    if (hasNext) {
+      navigate(`/pokemon/${currentList[currentIndex + 1]}`, { state: { currentList } });
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -123,12 +145,33 @@ const PokemonDetail = () => {
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className="container mx-auto px-6 pb-12 relative"
     >
-      <button 
-        onClick={() => navigate(-1)}
-        className="mb-8 px-5 py-2 flex items-center gap-2 text-xs font-bold tracking-widest uppercase border border-white/20 text-gray-300 rounded-full hover:bg-white/10 transition-colors w-fit cursor-pointer"
-      >
-        &larr; Go Back
-      </button>
+      <div className="flex justify-between items-center mb-8">
+        <button 
+          onClick={() => navigate('/dashboard')}
+          className="px-5 py-2 flex items-center gap-2 text-xs font-bold tracking-widest uppercase border border-white/20 text-gray-300 rounded-full hover:bg-white/10 transition-colors w-fit cursor-pointer"
+        >
+          &larr; Go Back
+        </button>
+
+        {currentList.length > 0 && (
+          <div className="flex gap-2">
+            <button 
+              onClick={handlePrev}
+              disabled={!hasPrev}
+              className={`px-4 py-2 flex items-center gap-2 text-xs font-bold tracking-widest uppercase border border-white/20 rounded-full transition-colors ${hasPrev ? 'text-gray-300 hover:bg-white/10 cursor-pointer' : 'text-gray-600 opacity-50 cursor-not-allowed'}`}
+            >
+              &larr; Prev
+            </button>
+            <button 
+              onClick={handleNext}
+              disabled={!hasNext}
+              className={`px-4 py-2 flex items-center gap-2 text-xs font-bold tracking-widest uppercase border border-white/20 rounded-full transition-colors ${hasNext ? 'text-gray-300 hover:bg-white/10 cursor-pointer' : 'text-gray-600 opacity-50 cursor-not-allowed'}`}
+            >
+              Next &rarr;
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="glass rounded-[2rem] p-10 mb-10 flex flex-col md:flex-row gap-16 items-center relative overflow-hidden">
         <div className="flex-1 flex flex-col items-center relative z-10">
@@ -228,6 +271,16 @@ const PokemonDetail = () => {
               </div>
             </div>
           ))}
+          
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <div className="flex justify-between text-xs font-black mb-2 uppercase tracking-widest text-white">
+              <span>TOTAL</span>
+              <span className="text-[#00E5FF]">{data.stats.reduce((acc, s) => acc + s.base_stat, 0)}</span>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+              <div className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full" style={{ width: `${Math.min((data.stats.reduce((acc, s) => acc + s.base_stat, 0) / 720) * 100, 100)}%` }}></div>
+            </div>
+          </div>
         </div>
       </div>
 
