@@ -1,0 +1,2 @@
+VITE_SUPABASE_URL= post ur url here
+VITE_SUPABASE_ANON_KEY= post ur anon key here
