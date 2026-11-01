@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFavorites } from '../context/FavoritesContext';
 import { Heart } from 'lucide-react';
+import ashGreninjaBattle from '../assets/ash_greninja_4k_battle.jpg';
 
 const MegaDex = () => {
   const [pokemon, setPokemon] = useState([]);
@@ -88,11 +89,18 @@ const MegaDex = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center flex-col gap-6">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-20 h-20 border-4 border-purple-400 border-t-transparent border-b-transparent rounded-full"></motion.div>
-        <motion.p animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="text-purple-400 font-black tracking-[0.3em] uppercase text-xs">
-          Loading Pure Mega Evolutions
-        </motion.p>
+      <div className="min-h-[80vh] flex items-center justify-center flex-col gap-4">
+        <div className="w-52 h-1 bg-white/10 rounded-full overflow-hidden relative">
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.1, ease: 'easeInOut' }}
+            className="w-1/2 h-full bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-[0_0_12px_rgba(168,85,247,0.8)]"
+          />
+        </div>
+        <p className="text-purple-400 font-mono font-bold tracking-[0.25em] uppercase text-[11px]">
+          Synchronizing Mega Evolution Telemetry...
+        </p>
       </div>
     );
   }
@@ -124,19 +132,36 @@ const MegaDex = () => {
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="container mx-auto px-6 pb-12"
     >
-      <div className="mb-8 border-b border-[rgba(148,163,184,0.1)] pb-6 text-center flex flex-col items-center relative">
-        <button 
-          onClick={() => navigate('/dashboard')}
-          className="absolute left-0 top-0 px-4 py-2 border border-[rgba(148,163,184,0.3)] rounded-full text-[10px] font-bold text-[var(--color-silver)] hover:text-white hover:border-white transition-all uppercase tracking-widest cursor-pointer"
-        >
-          &larr; Back
-        </button>
-        <h2 className="text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-[#00E5FF] py-2 leading-tight flex items-center gap-4 drop-shadow-md">
-          PURE MegaDex
-        </h2>
-        <p className="text-[var(--color-silver)] font-medium tracking-[0.1em] text-xs max-w-xl leading-relaxed uppercase mt-2">
-          The ultimate collection of Mega Evolved forms across all regions.
-        </p>
+      {/* 4K Kalos Mega Evolution Deck */}
+      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 shadow-2xl relative overflow-hidden text-center flex flex-col items-center">
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-20 filter blur-xs pointer-events-none scale-105"
+          style={{ backgroundImage: `url(${ashGreninjaBattle})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#070B14]/80 via-[#070B14]/70 to-[#070B14] pointer-events-none" />
+
+        <div className="relative z-10 w-full flex flex-col items-center">
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="self-start mb-4 px-4 py-2 border border-white/20 glass rounded-full text-[10px] font-bold text-gray-300 hover:text-white hover:border-[#00E5FF] transition-all uppercase tracking-widest cursor-pointer"
+          >
+            &larr; Back to Kalos
+          </button>
+          
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
+            <span className="text-[10px] font-mono tracking-widest text-purple-300 uppercase font-bold">
+              Kalos Mega Stone Telemetry
+            </span>
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-[#00E5FF] leading-tight drop-shadow-md">
+            PURE MEGADEX
+          </h2>
+          <p className="text-gray-300 font-medium tracking-[0.1em] text-xs max-w-xl leading-relaxed uppercase mt-2">
+            The complete compendium of pure Mega Evolutions, Primal Reversions, and Ash-Greninja Battle Bond transformations.
+          </p>
+        </div>
       </div>
       
       {/* Controls */}

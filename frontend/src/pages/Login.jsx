@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { motion } from 'framer-motion';
+import ashKalosHero from '../assets/ash_kalos_hero.jpg';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -65,11 +66,16 @@ const Login = () => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="min-h-screen flex flex-col items-center justify-center bg-[#0A0F1D] p-4 sm:p-6 relative overflow-hidden"
+      className="min-h-screen flex flex-col items-center justify-center bg-[#070B14] p-4 sm:p-6 relative overflow-hidden"
     >
       {/* Background visual flair */}
-      <div className="absolute top-[-10%] left-[-10%] w-64 sm:w-96 h-64 sm:h-96 bg-[#00E5FF] rounded-full mix-blend-multiply filter blur-[96px] sm:blur-[128px] opacity-20 sm:opacity-10 animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-64 sm:w-96 h-64 sm:h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-[96px] sm:blur-[128px] opacity-20 sm:opacity-10 animate-pulse delay-1000"></div>
+      {/* 4K Kalos & Ash Theme Atmospheric Background */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-25 filter blur-xs pointer-events-none scale-105"
+        style={{ backgroundImage: `url(${ashKalosHero})` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#070B14] via-[#070B14]/80 to-[#070B14]/90 pointer-events-none" />
+
 
       <div className="w-full text-center mb-6 sm:mb-8 text-[10px] sm:text-xs font-light tracking-widest text-[#A0AEC0] uppercase relative z-10 px-2">
         Kalos Dex "One step ahead of mega evolution"

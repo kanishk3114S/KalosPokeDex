@@ -23,6 +23,8 @@ import {
   staggerGridContainer, 
   buttonTapSpring 
 } from '../constants/animations';
+import greninja4kEpic from '../assets/greninja_4k_epic.jpg';
+import ashGreninjaRender from '../assets/ash_greninja_hero_render.png';
 
 const Dashboard = () => {
   const [pokemon, setPokemon] = useState([]);
@@ -158,23 +160,44 @@ const Dashboard = () => {
       exit="exit"
       className="container mx-auto px-4 sm:px-6 pb-20 relative"
     >
-      {/* 9th-Gen Kalos Holographic Control Deck */}
-      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative overflow-hidden">
-        {/* Decorative holographic grid lines */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-[#00E5FF]/10 via-[#FF3366]/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+      {/* 9th-Gen Kalos Holographic Control Deck with 4K Kalos & Ash Theme */}
+      <div className="glass rounded-3xl p-6 sm:p-10 mb-8 border border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.4)] relative overflow-hidden">
+        {/* 4K Kalos Background Image with Subtle Atmospheric Scrim */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-20 filter blur-xs pointer-events-none"
+          style={{ backgroundImage: `url(${greninja4kEpic})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070B14] via-[#070B14]/85 to-transparent pointer-events-none" />
 
-        {/* Header telemetry and title */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10 relative z-10">
+        {/* 4K Ash-Greninja Floating Specimen Standee (Desktop) */}
+        <div className="hidden lg:block absolute -right-6 -bottom-6 w-80 h-80 pointer-events-none z-10">
+          <motion.img
+            src={ashGreninjaRender}
+            alt="Ash-Greninja 4K"
+            animate={{ y: [-4, 4, -4] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,229,255,0.35)]"
+          />
+        </div>
+
+        {/* Header Telemetry and Title */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10 relative z-20">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="w-2 h-2 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
               <span className="text-[10px] font-mono tracking-widest text-[#00E5FF] uppercase font-bold">
-                Kalos Pokédex Subsystem
+                Kalos Pokédex Subsystem • Gen 09 Spatial UI
+              </span>
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-[#FF3366]/20 border border-[#FF3366]/40 text-[#FF3366] font-bold">
+                ASH-GRENINJA SYNERGY ACTIVE
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+            <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">
               Kalos Region Roster
             </h2>
+            <p className="text-xs text-gray-400 mt-1 max-w-xl">
+              Authentic Gen-VI database calibrated with Ash Ketchum's Kalos Championship squadron, high-fidelity official stats, and spatial 3D telemetry.
+            </p>
           </div>
 
           {/* Quick HUD Metrics */}
@@ -184,11 +207,11 @@ const Dashboard = () => {
               <span className="font-mono font-black text-white">{pokemon.length}</span>
             </div>
             <div className="px-3.5 py-1.5 rounded-xl glass border border-[#FF3366]/30 text-xs">
-              <span className="text-[#FF3366] text-[10px] block font-mono">ASH'S KALOS TEAM</span>
+              <span className="text-[#FF3366] text-[10px] block font-mono">ASH'S KALOS SQUAD</span>
               <span className="font-mono font-black text-white">{ASH_KALOS_POKEMON.length}</span>
             </div>
             <div className="px-3.5 py-1.5 rounded-xl glass border border-pink-500/30 text-xs">
-              <span className="text-pink-400 text-[10px] block font-mono">FAVORITES</span>
+              <span className="text-pink-400 text-[10px] block font-mono">SAVED SQUAD</span>
               <span className="font-mono font-black text-white">{favorites?.length || 0}</span>
             </div>
           </div>

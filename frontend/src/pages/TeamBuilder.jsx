@@ -15,7 +15,8 @@ import {
   Sparkles,
   Swords,
   ChevronDown,
-  Sliders
+  Sliders,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -186,6 +187,51 @@ const TeamBuilder = () => {
     setMoveSearch('');
   };
 
+  const loadAshKalosTeam = async () => {
+    const ashNames = ['greninja-ash', 'pikachu', 'talonflame', 'hawlucha', 'goodra', 'noivern'];
+    setTeamName("Ash's Kalos League Team");
+    
+    // Set placeholder loading states
+    const initialAshTeam = ashNames.map((name) => ({
+      name,
+      loading: true,
+      hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0,
+      types: [],
+      moves: [null, null, null, null],
+      availableMoves: []
+    }));
+    setTeam(initialAshTeam);
+
+    const fullTeam = await Promise.all(
+      ashNames.map(async (name) => {
+        try {
+          const detailRes = await axios.get(`https://pokeapi.co/api/v2/pokemon/${name}`);
+          const d = detailRes.data;
+          const availableMoves = d.moves ? d.moves.map((m) => m.move.name.replace('-', ' ')) : [];
+          const defaultMoves = availableMoves.slice(0, 4);
+          while (defaultMoves.length < 4) defaultMoves.push(null);
+          return {
+            name: d.name,
+            id: d.id,
+            hp: d.stats?.[0]?.base_stat || 0,
+            attack: d.stats?.[1]?.base_stat || 0,
+            defense: d.stats?.[2]?.base_stat || 0,
+            spAtk: d.stats?.[3]?.base_stat || 0,
+            spDef: d.stats?.[4]?.base_stat || 0,
+            speed: d.stats?.[5]?.base_stat || 0,
+            types: d.types?.map((t) => t.type.name) || [],
+            moves: defaultMoves,
+            availableMoves,
+            loading: false
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+    setTeam(fullTeam.filter(Boolean));
+  };
+
   // Team Analytics
   const validMembers = team.filter(Boolean);
   const totalBaseStats = validMembers.reduce(
@@ -257,7 +303,15 @@ const TeamBuilder = () => {
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <button
+              onClick={loadAshKalosTeam}
+              className="px-4 py-2 rounded-xl border border-[#FF3366]/40 bg-[#FF3366]/15 hover:bg-[#FF3366]/25 text-[#FF3366] text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,51,102,0.3)]"
+            >
+              <Zap size={14} />
+              <span>Ash's Kalos Squad</span>
+            </button>
+
             <button
               onClick={clearTeam}
               disabled={validMembers.length === 0}

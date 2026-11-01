@@ -11,12 +11,10 @@ export const SpatialCard = ({
   onClick,
   maxTilt = 16,
   className = '',
-  enablePokeballBurst = false,
   ...props
 }) => {
   const cardRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [isReleasing, setIsReleasing] = useState(false);
 
   // Normalized mouse coordinates: -0.5 to 0.5 from center
   const mouseX = useMotionValue(0);
@@ -56,14 +54,7 @@ export const SpatialCard = ({
   }, [mouseX, mouseY]);
 
   const handleClick = (e) => {
-    if (enablePokeballBurst) {
-      setIsReleasing(true);
-      setTimeout(() => {
-        if (onClick) onClick(e);
-      }, 350);
-    } else {
-      if (onClick) onClick(e);
-    }
+    if (onClick) onClick(e);
   };
 
   return (
@@ -96,16 +87,6 @@ export const SpatialCard = ({
           }}
           className="absolute inset-0 pointer-events-none rounded-3xl z-30 transition-opacity duration-200"
         />
-
-        {/* Cinematic Pokéball Aperture Burst Animation */}
-        {isReleasing && (
-          <motion.div
-            initial={{ scale: 0.1, opacity: 1 }}
-            animate={{ scale: 3.5, opacity: 0 }}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-            className="absolute inset-0 m-auto w-32 h-32 rounded-full border-4 border-[#00E5FF] bg-gradient-to-tr from-[#00E5FF]/40 to-[#FF3366]/40 pointer-events-none z-40 shadow-[0_0_50px_#00E5FF]"
-          />
-        )}
 
         {/* 3D Content Container with Parallax Z-Depth */}
         <div style={{ transform: 'translateZ(20px)', transformStyle: 'preserve-3d' }}>

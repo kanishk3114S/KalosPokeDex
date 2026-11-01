@@ -227,14 +227,17 @@ const PokemonDetail = () => {
 
   if (loading || !data) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-5">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="w-16 h-16 border-4 border-[#00E5FF] border-t-transparent border-b-transparent rounded-full shadow-[0_0_25px_rgba(0,229,255,0.4)]"
-        />
-        <p className="text-xs font-mono font-bold tracking-[0.25em] text-[#00E5FF] uppercase animate-pulse">
-          Accessing Kalos Mainframe Database...
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
+        <div className="w-52 h-1 bg-white/10 rounded-full overflow-hidden relative">
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.1, ease: 'easeInOut' }}
+            className="w-1/2 h-full bg-gradient-to-r from-transparent via-[#00E5FF] to-transparent shadow-[0_0_12px_#00E5FF]"
+          />
+        </div>
+        <p className="text-[11px] font-mono font-bold tracking-[0.25em] text-[#00E5FF] uppercase">
+          Deciphering Specimen Telemetry...
         </p>
       </div>
     );
