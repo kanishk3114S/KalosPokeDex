@@ -23,8 +23,6 @@ import {
   staggerGridContainer, 
   buttonTapSpring 
 } from '../constants/animations';
-import greninja4kEpic from '../assets/greninja_4k_epic.jpg';
-import ashGreninjaRender from '../assets/ash_greninja_hero_render.png';
 
 const Dashboard = () => {
   const [pokemon, setPokemon] = useState([]);
@@ -160,25 +158,10 @@ const Dashboard = () => {
       exit="exit"
       className="container mx-auto px-4 sm:px-6 pb-20 relative"
     >
-      {/* 9th-Gen Kalos Holographic Control Deck with 4K Kalos & Ash Theme */}
-      <div className="glass rounded-3xl p-6 sm:p-10 mb-8 border border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.4)] relative overflow-hidden">
-        {/* 4K Kalos Background Image with Subtle Atmospheric Scrim */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-20 filter blur-xs pointer-events-none"
-          style={{ backgroundImage: `url(${greninja4kEpic})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#070B14] via-[#070B14]/85 to-transparent pointer-events-none" />
-
-        {/* 4K Ash-Greninja Floating Specimen Standee (Desktop) */}
-        <div className="hidden lg:block absolute -right-6 -bottom-6 w-80 h-80 pointer-events-none z-10">
-          <motion.img
-            src={ashGreninjaRender}
-            alt="Ash-Greninja 4K"
-            animate={{ y: [-4, 4, -4] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,229,255,0.35)]"
-          />
-        </div>
+      {/* 9th-Gen Kalos Holographic Control Deck */}
+      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.4)] relative overflow-hidden">
+        {/* Subtle holographic ambient glows */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#00E5FF]/10 via-[#FF3366]/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
         {/* Header Telemetry and Title */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10 relative z-20">
@@ -382,36 +365,53 @@ const Dashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* 18 Elemental Type Pills Carousel */}
-        <div className="mt-5 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <button
-            onClick={() => setSelectedType('all')}
-            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
-              selectedType === 'all'
-                ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_12px_rgba(0,229,255,0.4)]'
-                : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
-            }`}
-          >
-            All Types
-          </button>
-
-          {Object.entries(TYPE_CONFIG).map(([typeKey, conf]) => {
-            const isSelected = selectedType === typeKey;
-            return (
+        {/* 18 Elemental Type Filter Spectrum */}
+        <div className="mt-6 pt-4 border-t border-white/10 relative z-20">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[10px] font-mono tracking-widest text-gray-400 uppercase font-bold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF]" />
+              <span>Filter By Elemental Type (18 Types)</span>
+            </span>
+            {selectedType !== 'all' && (
               <button
-                key={typeKey}
-                onClick={() => setSelectedType(isSelected ? 'all' : typeKey)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
-                  isSelected
-                    ? `${conf.bg} ring-2 ring-[#00E5FF] shadow-md`
-                    : 'bg-white/5 text-gray-300 border-white/10 hover:border-white/30'
-                }`}
+                onClick={() => setSelectedType('all')}
+                className="text-[10px] font-mono font-bold text-[#00E5FF] hover:underline uppercase cursor-pointer"
               >
-                <span>{conf.icon}</span>
-                <span>{conf.name}</span>
+                Clear Type Filter
               </button>
-            );
-          })}
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-white/20">
+            <button
+              onClick={() => setSelectedType('all')}
+              className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
+                selectedType === 'all'
+                  ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.4)] scale-105'
+                  : 'bg-black/60 text-gray-300 border-white/15 hover:border-white/40 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              All Types
+            </button>
+
+            {Object.entries(TYPE_CONFIG).map(([typeKey, conf]) => {
+              const isSelected = selectedType === typeKey;
+              return (
+                <button
+                  key={typeKey}
+                  onClick={() => setSelectedType(isSelected ? 'all' : typeKey)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
+                    isSelected
+                      ? `${conf.bg} ring-2 ring-white/60 shadow-[0_0_15px_rgba(255,255,255,0.25)] scale-105 text-white`
+                      : 'bg-black/60 text-gray-300 border-white/15 hover:border-[#00E5FF]/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-sm leading-none">{conf.icon}</span>
+                  <span className="leading-none">{conf.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

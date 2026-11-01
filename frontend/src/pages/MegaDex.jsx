@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFavorites } from '../context/FavoritesContext';
 import { Heart } from 'lucide-react';
-import ashGreninjaBattle from '../assets/ash_greninja_4k_battle.jpg';
 
 const MegaDex = () => {
   const [pokemon, setPokemon] = useState([]);
@@ -132,13 +131,11 @@ const MegaDex = () => {
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="container mx-auto px-6 pb-12"
     >
-      {/* 4K Kalos Mega Evolution Deck */}
+      {/* Futuristic Kalos Mega Evolution Deck */}
       <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 shadow-2xl relative overflow-hidden text-center flex flex-col items-center">
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-20 filter blur-xs pointer-events-none scale-105"
-          style={{ backgroundImage: `url(${ashGreninjaBattle})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#070B14]/80 via-[#070B14]/70 to-[#070B14] pointer-events-none" />
+        {/* Subtle holographic ambient glows */}
+        <div className="absolute -top-24 -left-24 w-72 h-72 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-[#00E5FF]/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 w-full flex flex-col items-center">
           <button 
