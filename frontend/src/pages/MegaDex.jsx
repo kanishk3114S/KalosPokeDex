@@ -43,12 +43,6 @@ const MegaDex = () => {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/');
-      return;
-    }
-
     const fetchMegaPokemon = async () => {
       try {
         const res = await axios.get(`https://pokeapi.co/api/v2/pokemon?limit=1500`);

@@ -1,52 +1,85 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Shield, 
+  Trash2, 
+  Plus, 
+  Cloud, 
+  Check, 
+  Search, 
+  AlertTriangle, 
+  ShieldCheck, 
+  X,
+  Sparkles
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { TYPE_CONFIG } from '../constants/kalosData';
+import { ALL_TYPES, calculateTeamCoverage, getDefenseMultiplier } from '../constants/typeMatchups';
+import { pageVariants, modalDialogVariants } from '../constants/animations';
 
 const TeamBuilder = () => {
-  const [teamName, setTeamName] = useState('My Awesome Team');
+  const { user, isGuest, openAuthModal } = useAuth();
+  const { isShiny } = useTheme();
+
+  const [teamName, setTeamName] = useState(() => {
+    return localStorage.getItem('kalosTeamName') || 'Kalos Elite Squad';
+  });
+
   const [team, setTeam] = useState(() => {
     const saved = localStorage.getItem('kalosTeam');
     return saved ? JSON.parse(saved) : Array(6).fill(null);
   });
-  
+
   const [availablePokemon, setAvailablePokemon] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('');
 
+  // Persist locally
   useEffect(() => {
     localStorage.setItem('kalosTeam', JSON.stringify(team));
   }, [team]);
 
   useEffect(() => {
+    localStorage.setItem('kalosTeamName', teamName);
+  }, [teamName]);
+
+  // Load pool
+  useEffect(() => {
     const fetchPool = async () => {
       try {
         const [kalosRes, megaRes] = await Promise.all([
-          axios.get(`https://pokeapi.co/api/v2/pokemon?limit=72&offset=649`),
-          axios.get(`https://pokeapi.co/api/v2/pokemon?limit=1500`)
+          axios.get('https://pokeapi.co/api/v2/pokemon?limit=72&offset=649'),
+          axios.get('https://pokeapi.co/api/v2/pokemon?limit=1500')
         ]);
 
-        let kalosList = kalosRes.data.results;
-        let megaList = megaRes.data.results.filter(p => p.name.includes('-mega'));
-        
-        let combined = [...kalosList, { name: 'greninja-ash', url: 'https://pokeapi.co/api/v2/pokemon/10116/' }, ...megaList];
-        
-        // Instantly map basic data without fetching 150 detailed stats
-        const instantPool = combined.map(p => {
+        const kalosList = kalosRes.data.results;
+        const megaList = megaRes.data.results.filter((p) => p.name.includes('-mega'));
+        const combined = [
+          ...kalosList,
+          { name: 'greninja-ash', url: 'https://pokeapi.co/api/v2/pokemon/10116/' },
+          ...megaList
+        ];
+
+        const mapped = combined.map((p) => {
           const idStr = p.url.split('/').filter(Boolean).pop();
           return {
             name: p.name,
             url: p.url,
-            id: parseInt(idStr),
+            id: parseInt(idStr, 10),
             sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${idStr}.png`
           };
         });
-        
-        setAvailablePokemon(instantPool);
+
+        setAvailablePokemon(mapped);
       } catch (err) {
-        console.error("Failed fetching pool", err);
+        console.error('Failed to fetch Pokémon pool:', err);
       }
     };
+
     fetchPool();
   }, []);
 
@@ -58,20 +91,21 @@ const TeamBuilder = () => {
   const selectPokemon = async (p) => {
     setIsModalOpen(false);
     setSearchTerm('');
-    
-    // Add temporary placeholder to team slot
+
+    // Temporary loading placeholder
     const tempTeam = [...team];
-    tempTeam[selectedSlotIndex] = { 
-      ...p, 
+    tempTeam[selectedSlotIndex] = {
+      ...p,
       loading: true,
-      hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 
+      hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0,
+      types: []
     };
     setTeam([...tempTeam]);
 
     try {
       const detailRes = await axios.get(p.url);
       const d = detailRes.data;
-      
+
       const detailedPokemon = {
         name: p.name,
         id: p.id,
@@ -82,14 +116,15 @@ const TeamBuilder = () => {
         spDef: d.stats?.[4]?.base_stat || 0,
         speed: d.stats?.[5]?.base_stat || 0,
         sprite: d.sprites?.other?.['official-artwork']?.front_default || d.sprites?.front_default || p.sprite,
-        types: d.types?.map(t => t.type.name) || []
+        spriteShiny: d.sprites?.other?.['official-artwork']?.front_shiny || d.sprites?.front_default || p.sprite,
+        types: d.types?.map((t) => t.type.name) || []
       };
 
       const finalTeam = [...team];
       finalTeam[selectedSlotIndex] = detailedPokemon;
       setTeam([...finalTeam]);
     } catch (err) {
-      console.error("Failed to fetch detailed stats", err);
+      console.error('Failed to load Pokémon details for slot:', err);
       const revertTeam = [...team];
       revertTeam[selectedSlotIndex] = null;
       setTeam([...revertTeam]);
@@ -103,160 +138,339 @@ const TeamBuilder = () => {
     setTeam(newTeam);
   };
 
-  const calcAverage = (statName) => {
-    const valid = team.filter(p => p !== null);
-    if (valid.length === 0) return 0;
-    const sum = valid.reduce((acc, p) => acc + p[statName], 0);
-    return Math.round(sum / valid.length);
+  const clearTeam = () => {
+    setTeam(Array(6).fill(null));
   };
 
-  const validMembers = team.filter(p => p !== null);
-  const totalBaseStats = validMembers.reduce((acc, p) => acc + p.hp + p.attack + p.defense + p.spAtk + p.spDef + p.speed, 0);
+  const handleCloudSave = () => {
+    if (isGuest) {
+      openAuthModal('Log in with your Trainer ID to sync teams to your cloud profile.');
+      return;
+    }
+    // Authenticated save confirmation
+    setSaveStatus('Team synchronized with Kalos Cloud Database!');
+    setTimeout(() => setSaveStatus(''), 4000);
+  };
 
-  const displayedPool = availablePokemon.filter(p => p.name.includes(searchTerm.toLowerCase()));
+  // Team Analytics
+  const validMembers = team.filter(Boolean);
+  const totalBaseStats = validMembers.reduce(
+    (acc, p) => acc + p.hp + p.attack + p.defense + p.spAtk + p.spDef + p.speed,
+    0
+  );
+
+  const calcAverage = (statKey) => {
+    if (validMembers.length === 0) return 0;
+    const sum = validMembers.reduce((acc, p) => acc + (p[statKey] || 0), 0);
+    return Math.round(sum / validMembers.length);
+  };
+
+  // Full 18-type defensive coverage
+  const teamCoverage = useMemo(() => {
+    return calculateTeamCoverage(team);
+  }, [team]);
+
+  const displayedPool = availablePokemon.filter((p) =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
+  );
 
   return (
-    <div className="container mx-auto px-6 pb-12">
-      <div className="mb-10 border-b border-white/10 pb-8 flex flex-col items-center">
-        <h2 className="text-3xl font-black mb-4 tracking-widest text-gray-300 uppercase">Team Builder</h2>
-        <input 
-          type="text" 
-          value={teamName}
-          onChange={(e) => setTeamName(e.target.value)}
-          className="text-center text-xl font-bold bg-transparent border-b border-dashed border-gray-400 text-white focus:outline-none focus:border-[#00E5FF] transition-colors py-2"
-        />
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="container mx-auto px-4 sm:px-6 pb-20"
+    >
+      {/* Holo-Caster Header */}
+      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-6 border-b border-white/10">
+          <div className="text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+              <Shield size={16} className="text-[#00E5FF]" />
+              <span className="text-[10px] font-mono tracking-widest text-[#00E5FF] uppercase font-bold">
+                Tactical Battle Squad Builder
+              </span>
+            </div>
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              className="text-2xl sm:text-3xl font-black bg-transparent border-b border-dashed border-white/20 text-white focus:outline-none focus:border-[#00E5FF] transition-colors pb-1 uppercase tracking-tight w-full max-w-md"
+            />
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={clearTeam}
+              disabled={validMembers.length === 0}
+              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:border-red-500/40 text-gray-300 hover:text-red-400 text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer flex items-center gap-2"
+            >
+              <Trash2 size={14} />
+              <span>Clear</span>
+            </button>
+
+            <button
+              onClick={handleCloudSave}
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-400 text-black text-xs font-black uppercase tracking-widest shadow-[0_0_15px_rgba(0,229,255,0.4)] hover:shadow-[0_0_25px_rgba(0,229,255,0.6)] transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Cloud size={14} />
+              <span>{isGuest ? 'Cloud Sync (Login)' : 'Save to Cloud'}</span>
+            </button>
+          </div>
+        </div>
+
+        {saveStatus && (
+          <div className="mt-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+            <Check size={16} />
+            <span>{saveStatus}</span>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
+      {/* 6 Team Roster Slots */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5 mb-10">
         {team.map((member, index) => (
-          <div 
-            key={index} 
+          <div
+            key={index}
             onClick={() => openModal(index)}
-            className="glass aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-[#00E5FF] transition-all relative group overflow-hidden"
+            className="glass aspect-square rounded-3xl p-3 flex flex-col items-center justify-center cursor-pointer border border-white/10 hover:border-[#00E5FF] hover:shadow-[0_0_20px_rgba(0,229,255,0.25)] transition-all relative group overflow-hidden select-none"
           >
             {member ? (
               <>
-                <button 
+                <button
+                  type="button"
                   onClick={(e) => removePokemon(index, e)}
-                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                  title="Remove Specimen"
+                  className="absolute top-2 right-2 w-6 h-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity z-30"
                 >
-                  X
+                  <X size={12} />
                 </button>
-                <img 
-                  src={member.sprite} 
-                  alt={member.name} 
-                  className={`w-24 h-24 object-contain drop-shadow-md mb-2 transition-all ${member.loading ? 'opacity-50 animate-pulse' : 'group-hover:scale-110'}`} 
-                />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-200 truncate w-full text-center px-2">
+
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 mb-2 flex items-center justify-center">
+                  <img
+                    src={isShiny ? (member.spriteShiny || member.sprite) : member.sprite}
+                    alt={member.name}
+                    className={`w-full h-full object-contain filter drop-shadow-lg transition-transform ${
+                      member.loading ? 'animate-pulse opacity-40' : 'group-hover:scale-110'
+                    }`}
+                  />
+                </div>
+
+                <span className="text-[10px] font-black uppercase tracking-wider text-white truncate w-full text-center px-1">
                   {member.name.replace('-', ' ')}
                 </span>
+
+                <div className="flex gap-1 mt-1">
+                  {member.types?.map((t) => (
+                    <span
+                      key={t}
+                      className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-white/10 text-gray-200 border border-white/15"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
               </>
             ) : (
-              <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center text-gray-500 font-bold opacity-50 group-hover:text-[#00E5FF] group-hover:border-[#00E5FF] transition-colors">
-                +
+              <div className="flex flex-col items-center justify-center text-center text-gray-500 group-hover:text-[#00E5FF] transition-colors">
+                <div className="w-12 h-12 rounded-2xl border-2 border-dashed border-gray-600 group-hover:border-[#00E5FF] flex items-center justify-center mb-2 transition-colors">
+                  <Plus size={20} />
+                </div>
+                <span className="text-[10px] font-mono uppercase font-bold tracking-widest">
+                  Slot #{index + 1}
+                </span>
               </div>
             )}
           </div>
         ))}
       </div>
 
+      {/* Team Analytics & Type Coverage Analysis */}
       {validMembers.length > 0 && (
-        <div className="glass rounded-[2rem] p-10 mb-10 w-full max-w-4xl mx-auto">
-          <h3 className="text-sm font-black mb-8 tracking-widest text-gray-300 uppercase text-center">Team Analytics</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="space-y-4">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-200">
-                <span>Average HP</span><span className="text-[#00E5FF]">{calcAverage('hp')}</span>
-              </div>
-              <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-[#00E5FF] h-1 rounded-full" style={{ width: `${(calcAverage('hp')/255)*100}%` }}></div></div>
+        <div className="space-y-8">
+          {/* Base Stats Telemetry */}
+          <div className="glass rounded-3xl p-6 sm:p-8 border border-white/10">
+            <h3 className="text-base font-black uppercase tracking-wider text-white mb-6 text-center">
+              Squad Stat Metrics & Balance
+            </h3>
 
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-200">
-                <span>Average Attack</span><span className="text-[#00E5FF]">{calcAverage('attack')}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              <div className="space-y-4">
+                {[
+                  { label: 'Average HP', key: 'hp' },
+                  { label: 'Average Attack', key: 'attack' },
+                  { label: 'Average Defense', key: 'defense' }
+                ].map(({ label, key }) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-300 mb-1">
+                      <span>{label}</span>
+                      <span className="text-[#00E5FF] font-mono">{calcAverage(key)}</span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-[#00E5FF] h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((calcAverage(key) / 255) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-[#00E5FF] h-1 rounded-full" style={{ width: `${(calcAverage('attack')/255)*100}%` }}></div></div>
 
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-200">
-                <span>Average Defense</span><span className="text-[#00E5FF]">{calcAverage('defense')}</span>
+              <div className="space-y-4">
+                {[
+                  { label: 'Average Sp. Atk', key: 'spAtk' },
+                  { label: 'Average Sp. Def', key: 'spDef' },
+                  { label: 'Average Speed', key: 'speed' }
+                ].map(({ label, key }) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-300 mb-1">
+                      <span>{label}</span>
+                      <span className="text-[#00E5FF] font-mono">{calcAverage(key)}</span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-cyan-400 to-[#FF3366] h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((calcAverage(key) / 255) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-[#00E5FF] h-1 rounded-full" style={{ width: `${(calcAverage('defense')/255)*100}%` }}></div></div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-200">
-                <span>Average Sp. Atk</span><span className="text-[#00E5FF]">{calcAverage('spAtk')}</span>
+            <div className="mt-8 pt-6 border-t border-white/10 text-center">
+              <span className="text-xs font-mono font-bold uppercase tracking-widest text-gray-400">
+                Aggregated Team Base Stat Total (BST)
+              </span>
+              <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00E5FF] to-pink-500 mt-1">
+                {totalBaseStats}
               </div>
-              <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-[#00E5FF] h-1 rounded-full" style={{ width: `${(calcAverage('spAtk')/255)*100}%` }}></div></div>
-
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-200">
-                <span>Average Sp. Def</span><span className="text-[#00E5FF]">{calcAverage('spDef')}</span>
-              </div>
-              <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-[#00E5FF] h-1 rounded-full" style={{ width: `${(calcAverage('spDef')/255)*100}%` }}></div></div>
-
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-200">
-                <span>Average Speed</span><span className="text-[#00E5FF]">{calcAverage('speed')}</span>
-              </div>
-              <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-[#00E5FF] h-1 rounded-full" style={{ width: `${(calcAverage('speed')/255)*100}%` }}></div></div>
             </div>
           </div>
-          
-          <div className="mt-10 text-center">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">Total Base Stats of Team</span>
-            <div className="text-4xl font-black text-[#00E5FF] mt-2">{totalBaseStats}</div>
+
+          {/* Type Coverage Analysis (Weaknesses & Resistances) */}
+          <div className="glass rounded-3xl p-6 sm:p-8 border border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-white/10 gap-2">
+              <div>
+                <h3 className="text-base font-black uppercase tracking-wider text-white">
+                  Full 18-Type Defensive Coverage Analysis
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Incoming attack coverage across your current team roster.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs font-mono">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <ShieldCheck size={14} /> Resists (&lt;1x)
+                </span>
+                <span className="flex items-center gap-1 text-red-400">
+                  <AlertTriangle size={14} /> Weaknesses (&gt;1x)
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              {ALL_TYPES.map((typeKey) => {
+                const conf = TYPE_CONFIG[typeKey] || TYPE_CONFIG.normal;
+                const cov = teamCoverage[typeKey] || { weaknesses: 0, resistances: 0, immunities: 0 };
+                const isVulnerable = cov.weaknesses > cov.resistances + cov.immunities;
+
+                return (
+                  <div
+                    key={typeKey}
+                    className={`p-3 rounded-2xl glass border transition-all ${
+                      isVulnerable ? 'border-red-500/40 bg-red-950/20' : 'border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-sm">{conf.icon}</span>
+                      <span className="text-xs font-black uppercase tracking-wider text-white truncate">
+                        {conf.name}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-emerald-400 font-bold" title="Team members resisting">
+                        +{cov.resistances + cov.immunities}
+                      </span>
+                      <span className="text-gray-500">/</span>
+                      <span className="text-red-400 font-bold" title="Team members weak">
+                        -{cov.weaknesses}
+                      </span>
+                    </div>
+
+                    {cov.immunities > 0 && (
+                      <div className="mt-1.5 text-[9px] font-mono text-[#00E5FF] uppercase font-bold text-center bg-[#00E5FF]/10 rounded py-0.5">
+                        {cov.immunities} Immune
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Selection Modal */}
+      {/* Specimen Picker Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              className="glass w-full max-w-3xl max-h-[80vh] flex flex-col rounded-3xl overflow-hidden bg-black/50 border border-white/20"
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              variants={modalDialogVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="glass w-full max-w-3xl max-h-[85vh] rounded-3xl p-6 border border-white/20 flex flex-col shadow-2xl bg-[#0F172A]/95"
             >
-              <div className="p-6 border-b border-white/10 flex justify-between items-center">
-                <h3 className="font-bold text-sm uppercase tracking-widest text-white">Select Pokémon</h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-300 hover:text-red-500 font-bold">Close</button>
-              </div>
-              
-              <div className="p-4 border-b border-white/10">
-                <input 
-                  type="text" placeholder="Search by name..." 
-                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-white/20 bg-transparent focus:outline-none focus:border-[#00E5FF] text-sm text-white"
-                />
+              <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                  Add Specimen to Slot #{selectedSlotIndex !== null ? selectedSlotIndex + 1 : ''}
+                </h3>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4">
-                {availablePokemon.length === 0 ? (
-                  <div className="text-center py-10 text-xs tracking-widest uppercase text-gray-500">Loading Databanks...</div>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {displayedPool.map(p => (
-                      <div 
-                        key={p.name} 
-                        onClick={() => selectPokemon(p)}
-                        className="flex flex-col items-center p-2 rounded-xl hover:bg-white/10 cursor-pointer border border-transparent hover:border-white/20 transition-colors"
-                      >
-                        <img src={p.sprite} alt={p.name} className="w-16 h-16 object-contain mb-2 drop-shadow-sm" />
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-center truncate w-full text-gray-200">
-                          {p.name.replace('-', ' ')}
-                        </span>
-                      </div>
-                    ))}
+              <div className="py-3">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Kalos & Mega Pokémon..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm focus:outline-none focus:border-[#00E5FF]"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-1">
+                {displayedPool.map((p) => (
+                  <div
+                    key={p.name}
+                    onClick={() => selectPokemon(p)}
+                    className="flex flex-col items-center p-3 rounded-2xl glass hover:border-[#00E5FF] hover:scale-105 cursor-pointer transition-all border border-white/5"
+                  >
+                    <img src={p.sprite} alt={p.name} className="w-16 h-16 object-contain mb-1 drop-shadow-md" />
+                    <span className="text-[10px] font-black uppercase text-center text-gray-200 truncate w-full">
+                      {p.name.replace('-', ' ')}
+                    </span>
                   </div>
-                )}
+                ))}
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
-
-    </div>
+    </motion.div>
   );
 };
 

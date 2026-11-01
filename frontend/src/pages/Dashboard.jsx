@@ -1,63 +1,55 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-import PokemonCard from '../components/PokemonCard';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Search, 
+  SlidersHorizontal, 
+  Heart, 
+  Sparkles, 
+  RotateCcw, 
+  ArrowUpDown, 
+  Grid3X3, 
+  Layers 
+} from 'lucide-react';
+import PokemonCard from '../components/PokemonCard';
 import { useFavorites } from '../context/FavoritesContext';
-import { Heart } from 'lucide-react';
+import { TYPE_CONFIG, ASH_KALOS_POKEMON, KALOS_SORT_OPTIONS } from '../constants/kalosData';
+import { 
+  pageVariants, 
+  staggerGridContainer, 
+  buttonTapSpring 
+} from '../constants/animations';
 
 const Dashboard = () => {
   const [pokemon, setPokemon] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const { isFavorite } = useFavorites();
-  
+  const [selectedType, setSelectedType] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'ash', 'favorites'
   const [sortAttribute, setSortAttribute] = useState('id');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const sortDropdownRef = useRef(null);
-  
-  const navigate = useNavigate();
 
-  const sortOptions = [
-    { value: 'id', label: 'Sort by ID' },
-    { value: 'name', label: 'Sort by Name' },
-    { value: 'height', label: 'Sort by Height' },
-    { value: 'weight', label: 'Sort by Weight' },
-    { value: 'hp', label: 'Sort by HP' },
-    { value: 'attack', label: 'Sort by Attack' },
-    { value: 'defense', label: 'Sort by Defense' },
-    { value: 'speed', label: 'Sort by Speed' },
-    { value: 'base_experience', label: 'Sort by Base Exp.' }
-  ];
+  const { isFavorite, favorites } = useFavorites();
 
+  // Load Kalos Pokémon (Gen 6: Chespin #650 to Volcanion #721 + Ash-Greninja #10116)
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
-        setIsSortOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/');
-      return;
-    }
+    let isMounted = true;
 
     const fetchKalosPokemon = async () => {
       try {
-        const offset = 649; 
+        setLoading(true);
+        const offset = 649;
         const limit = 72;
         const res = await axios.get(`https://pokeapi.co/api/v2/pokemon?limit=${limit}&offset=${offset}`);
-        
-        let kalosList = res.data.results;
-        kalosList.push({ name: 'greninja-ash', url: 'https://pokeapi.co/api/v2/pokemon/10116/' });
 
+        let kalosList = [...res.data.results];
+        kalosList.push({ 
+          name: 'greninja-ash', 
+          url: 'https://pokeapi.co/api/v2/pokemon/10116/' 
+        });
+
+        // Parallel batch fetch for detailed attributes
         const detailedPokemon = await Promise.all(
           kalosList.map(async (p) => {
             const detailRes = await axios.get(p.url);
@@ -67,174 +59,343 @@ const Dashboard = () => {
             return {
               name: p.name,
               url: p.url,
-              id: parseInt(idStr),
+              id: parseInt(idStr, 10),
+              types: d.types?.map((t) => t.type.name) || [],
               height: d.height,
               weight: d.weight,
-              base_experience: d.base_experience,
-              hp: d.stats[0].base_stat,
-              attack: d.stats[1].base_stat,
-              defense: d.stats[2].base_stat,
-              speed: d.stats[5].base_stat,
+              base_experience: d.base_experience || 0,
+              hp: d.stats?.[0]?.base_stat || 0,
+              attack: d.stats?.[1]?.base_stat || 0,
+              defense: d.stats?.[2]?.base_stat || 0,
+              speed: d.stats?.[5]?.base_stat || 0,
             };
           })
         );
 
-        setPokemon(detailedPokemon);
+        if (isMounted) {
+          setPokemon(detailedPokemon);
+        }
       } catch (err) {
-        console.error("Failed to fetch pokemon", err);
+        console.error('Failed to retrieve Kalos database:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchKalosPokemon();
-  }, [navigate]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[80vh] flex items-center justify-center flex-col gap-6">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-20 h-20 border-4 border-[var(--color-primary)] border-t-transparent border-b-transparent rounded-full"></motion.div>
-        <motion.p animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="text-[var(--color-primary)] font-black tracking-[0.3em] uppercase text-xs">
-          Loading Detailed Roster
-        </motion.p>
-      </div>
-    );
-  }
+    return () => { isMounted = false; };
+  }, []);
 
-  let displayedPokemon = pokemon.filter(p => {
-    const matchesSearch = p.name.includes(searchTerm.toLowerCase());
-    const matchesFav = showFavoritesOnly ? isFavorite(p.name) : true;
-    return matchesSearch && matchesFav;
-  });
+  // Filter & Sort Logic
+  const filteredAndSortedPokemon = useMemo(() => {
+    let list = [...pokemon];
 
-  displayedPokemon.sort((a, b) => {
-    let valA = a[sortAttribute];
-    let valB = b[sortAttribute];
-    if (sortAttribute === 'name') {
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+    // Search query filter
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      list = list.filter((p) => 
+        p.name.toLowerCase().includes(q) || 
+        String(p.id).includes(q)
+      );
     }
-    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
+
+    // Quick filter presets
+    if (activeFilter === 'ash') {
+      list = list.filter((p) => ASH_KALOS_POKEMON.includes(p.name));
+    } else if (activeFilter === 'favorites') {
+      list = list.filter((p) => isFavorite(p.name));
+    }
+
+    // Type filter
+    if (selectedType !== 'all') {
+      list = list.filter((p) => p.types && p.types.includes(selectedType));
+    }
+
+    // Sorting
+    list.sort((a, b) => {
+      let valA = a[sortAttribute];
+      let valB = b[sortAttribute];
+
+      if (typeof valA === 'string') {
+        valA = valA.toLowerCase();
+        valB = valB.toLowerCase();
+        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+
+      return sortOrder === 'asc' ? (valA || 0) - (valB || 0) : (valB || 0) - (valA || 0);
+    });
+
+    return list;
+  }, [pokemon, searchTerm, activeFilter, selectedType, sortAttribute, sortOrder, isFavorite]);
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedType('all');
+    setActiveFilter('all');
+    setSortAttribute('id');
+    setSortOrder('asc');
+  };
+
+  const contextList = filteredAndSortedPokemon.map((p) => p.name);
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.98, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98, y: -20 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="container mx-auto px-6 pb-12"
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="container mx-auto px-4 sm:px-6 pb-20 relative"
     >
-      <div className="mb-8 border-b border-[rgba(148,163,184,0.1)] pb-6 text-center flex flex-col items-center">
-        <h2 className="text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-[#00E5FF] py-2 leading-tight flex items-center gap-4 drop-shadow-md">
-          THE MEGADEX
-          {/* Authentic Mega Stone Symbol */}
-          <svg className="w-12 h-12 relative -top-1" viewBox="0 0 64 64" fill="none">
-            <circle cx="32" cy="32" r="28" fill="url(#megaBg)" stroke="#f8fafc" strokeWidth="3" className="drop-shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-            <path d="M32 12 C 16 12 12 28 26 38 C 40 48 32 54 32 54 C 32 54 48 40 34 30 C 20 20 32 12 32 12 Z" fill="#ffffff" />
-            <path d="M26 22 C 40 22 46 36 34 46 C 22 56 28 62 28 62 C 28 62 14 46 26 36 C 38 26 26 22 26 22 Z" fill="url(#megaHelix)" opacity="0.8" />
-            <defs>
-              <radialGradient id="megaBg" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="40%" stopColor="#e879f9" />
-                <stop offset="80%" stopColor="#0ea5e9" />
-                <stop offset="100%" stopColor="#312e81" />
-              </radialGradient>
-              <linearGradient id="megaHelix" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#facc15" />
-                <stop offset="50%" stopColor="#ef4444" />
-                <stop offset="100%" stopColor="#3b82f6" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </h2>
-        <p className="text-[var(--color-silver)] font-medium tracking-widest text-xs max-w-xl leading-relaxed uppercase mt-2">
-          Kalos Region Roster: 72 Pokémon + Battle Bond.
-        </p>
-        <button 
-          onClick={() => navigate('/mega-dex')}
-          className="mt-6 px-6 py-2 border border-[var(--color-primary)] text-[var(--color-text-main)] font-bold uppercase tracking-widest text-[10px] rounded-full hover:bg-[var(--color-primary)] hover:text-white transition-all cursor-pointer"
-        >
-          View Pure Mega Evolutions Dex &rarr;
-        </button>
-      </div>
-      
-      {/* Controls - Smaller & Z-index fixed */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10 glass p-3 rounded-3xl relative z-50">
-        <div className="relative w-full flex-1 flex gap-2">
-          <div className="relative w-full">
-            <svg className="w-4 h-4 absolute left-4 top-1/2 transform -translate-y-1/2 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            <input 
-              type="text" 
-              placeholder="Search..." 
+      {/* 9th-Gen Kalos Holographic Control Deck */}
+      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative overflow-hidden">
+        {/* Decorative holographic grid lines */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-[#00E5FF]/10 via-[#FF3366]/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+        {/* Header telemetry and title */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10 relative z-10">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
+              <span className="text-[10px] font-mono tracking-widest text-[#00E5FF] uppercase font-bold">
+                Kalos Pokédex Subsystem
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+              Kalos Region Roster
+            </h2>
+          </div>
+
+          {/* Quick HUD Metrics */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div className="px-3.5 py-1.5 rounded-xl glass border border-white/10 text-xs">
+              <span className="text-gray-400 text-[10px] block font-mono">POKÉDEX ENTRIES</span>
+              <span className="font-mono font-black text-white">{pokemon.length}</span>
+            </div>
+            <div className="px-3.5 py-1.5 rounded-xl glass border border-[#FF3366]/30 text-xs">
+              <span className="text-[#FF3366] text-[10px] block font-mono">ASH'S KALOS TEAM</span>
+              <span className="font-mono font-black text-white">{ASH_KALOS_POKEMON.length}</span>
+            </div>
+            <div className="px-3.5 py-1.5 rounded-xl glass border border-pink-500/30 text-xs">
+              <span className="text-pink-400 text-[10px] block font-mono">FAVORITES</span>
+              <span className="font-mono font-black text-white">{favorites?.length || 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Search & Filter Controls */}
+        <div className="mt-6 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 relative z-10">
+          {/* Real-time Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by species name or ID (e.g. Greninja, 658)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-full border border-[rgba(0,229,255,0.2)] bg-[rgba(0,0,0,0.4)] text-[var(--color-text-main)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] transition-all font-medium"
+              className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-black/40 border border-white/15 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF] transition-all"
             />
-          </div>
-          <button
-            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            className={`px-4 py-2 rounded-full border flex items-center justify-center transition-all ${showFavoritesOnly ? 'bg-pink-500/20 border-pink-500 text-pink-400' : 'border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.4)] text-gray-400 hover:border-pink-500 hover:text-pink-400'}`}
-            title="Toggle Favorites"
-          >
-            <Heart size={16} className={showFavoritesOnly ? 'fill-pink-400' : ''} />
-          </button>
-        </div>
-        
-        <div className="flex items-center gap-3 w-full md:w-auto relative" ref={sortDropdownRef}>
-          {/* Custom Animated Sort Dropdown */}
-          <div className="relative w-full md:w-auto">
-            <div 
-              onClick={() => setIsSortOpen(!isSortOpen)}
-              className="px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.6)] text-[var(--color-silver)] hover:border-[var(--color-primary)] transition-all duration-300 cursor-pointer font-bold uppercase tracking-wider text-[10px] flex justify-between items-center gap-3 min-w-[140px]"
-            >
-              <span>{sortOptions.find(o => o.value === sortAttribute)?.label}</span>
-              <motion.svg animate={{ rotate: isSortOpen ? 180 : 0 }} className="w-3 h-3 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></motion.svg>
-            </div>
-            
-            <AnimatePresence>
-              {isSortOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 5, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.3 }}
-                  className="absolute top-full right-0 bg-[var(--card-bg)] border border-[rgba(148,163,184,0.2)] rounded-2xl overflow-hidden shadow-lg z-[100] py-1 min-w-[160px]"
-                >
-                  {sortOptions.map(option => (
-                    <div 
-                      key={option.value}
-                      onClick={() => { setSortAttribute(option.value); setIsSortOpen(false); }}
-                      className={`px-4 py-3 text-[9px] font-bold uppercase tracking-widest cursor-pointer transition-colors ${sortAttribute === option.value ? 'text-[var(--color-primary)] bg-[rgba(59,130,246,0.05)]' : 'text-[var(--color-silver)] hover:text-[var(--color-text-main)] hover:bg-[rgba(148,163,184,0.05)]'}`}
-                    >
-                      {option.label}
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white px-2 py-0.5 rounded-md"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
-          <button 
-            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            className="px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.6)] text-[var(--color-silver)] hover:text-black hover:bg-[var(--color-primary)] transition-all font-black cursor-pointer tracking-widest text-[10px] uppercase"
+          {/* Quick Preset Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border ${
+                activeFilter === 'all'
+                  ? 'bg-white/15 text-white border-white/30 shadow-sm'
+                  : 'text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setActiveFilter(activeFilter === 'ash' ? 'all' : 'ash')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                activeFilter === 'ash'
+                  ? 'bg-[#FF3366]/20 text-[#FF3366] border-[#FF3366]/50 shadow-[0_0_12px_rgba(255,51,102,0.3)]'
+                  : 'text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Sparkles size={13} />
+              Ash's Squad
+            </button>
+            <button
+              onClick={() => setActiveFilter(activeFilter === 'favorites' ? 'all' : 'favorites')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                activeFilter === 'favorites'
+                  ? 'bg-pink-500/20 text-pink-300 border-pink-500/50 shadow-[0_0_12px_rgba(236,72,153,0.3)]'
+                  : 'text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Heart size={13} />
+              Favorites
+            </button>
+
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsSortOpen(!isSortOpen)}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 bg-black/40 border border-white/15 text-gray-200 hover:border-[#00E5FF]/50 transition-all cursor-pointer"
+              >
+                <SlidersHorizontal size={13} className="text-[#00E5FF]" />
+                <span className="hidden sm:inline">Sort:</span>
+                <span className="text-white capitalize">
+                  {KALOS_SORT_OPTIONS.find((o) => o.value === sortAttribute)?.label || 'ID'}
+                </span>
+              </button>
+
+              <AnimatePresence>
+                {isSortOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-52 rounded-2xl glass p-2 border border-white/20 shadow-2xl z-50 bg-[#0F172A]/95 backdrop-blur-xl"
+                  >
+                    <div className="p-1.5 text-[10px] font-mono uppercase text-gray-400 font-bold border-b border-white/10 mb-1">
+                      Sort Metrics
+                    </div>
+                    {KALOS_SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          setSortAttribute(opt.value);
+                          setIsSortOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center justify-between ${
+                          sortAttribute === opt.value
+                            ? 'bg-[#00E5FF]/20 text-[#00E5FF]'
+                            : 'text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {sortAttribute === opt.value && <span className="text-[#00E5FF]">•</span>}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Ascending / Descending Toggle */}
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              title={`Switch to ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+              className="p-2 rounded-xl bg-black/40 border border-white/15 text-gray-200 hover:border-[#00E5FF]/50 transition-all cursor-pointer"
+            >
+              <ArrowUpDown size={15} className={sortOrder === 'desc' ? 'rotate-180 transition-transform' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* 18 Elemental Type Pills Carousel */}
+        <div className="mt-5 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          <button
+            onClick={() => setSelectedType('all')}
+            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
+              selectedType === 'all'
+                ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_12px_rgba(0,229,255,0.4)]'
+                : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
+            }`}
           >
-            {sortOrder === 'asc' ? 'ASC ↑' : 'DESC ↓'}
+            All Types
           </button>
+
+          {Object.entries(TYPE_CONFIG).map(([typeKey, conf]) => {
+            const isSelected = selectedType === typeKey;
+            return (
+              <button
+                key={typeKey}
+                onClick={() => setSelectedType(isSelected ? 'all' : typeKey)}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
+                  isSelected
+                    ? `${conf.bg} ring-2 ring-[#00E5FF] shadow-md`
+                    : 'bg-white/5 text-gray-300 border-white/10 hover:border-white/30'
+                }`}
+              >
+                <span>{conf.icon}</span>
+                <span>{conf.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {displayedPokemon.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="text-center text-gray-500 font-black tracking-[0.3em] uppercase mt-24 text-sm">
-          No Pokémon found.
-        </motion.div>
+      {/* Roster Header Status */}
+      <div className="flex items-center justify-between mb-6 px-1">
+        <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-gray-400">
+          <span>Active Results:</span>
+          <span className="font-bold text-[#00E5FF]">{filteredAndSortedPokemon.length} Pokémon</span>
+        </div>
+
+        {(searchTerm || selectedType !== 'all' || activeFilter !== 'all') && (
+          <button
+            onClick={resetFilters}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <RotateCcw size={12} />
+            Reset Filters
+          </button>
+        )}
+      </div>
+
+      {/* Grid Content */}
+      {loading ? (
+        <div className="min-h-[50vh] flex flex-col items-center justify-center gap-5">
+          <div className="relative">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+              className="w-16 h-16 border-4 border-[#00E5FF] border-t-transparent border-b-transparent rounded-full shadow-[0_0_20px_rgba(0,229,255,0.4)]"
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="w-2.5 h-2.5 bg-[#FF3366] rounded-full animate-ping" />
+            </div>
+          </div>
+          <p className="text-xs font-mono font-bold tracking-[0.25em] text-[#00E5FF] uppercase animate-pulse">
+            Transmitting Kalos Data Stream...
+          </p>
+        </div>
+      ) : filteredAndSortedPokemon.length === 0 ? (
+        <div className="min-h-[40vh] glass rounded-3xl p-12 flex flex-col items-center justify-center text-center border border-white/10">
+          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-gray-400">
+            <Search size={28} />
+          </div>
+          <h3 className="text-lg font-black uppercase tracking-wider text-white mb-2">
+            No Pokémon Match Criteria
+          </h3>
+          <p className="text-xs text-gray-400 max-w-sm mb-6 leading-relaxed">
+            The Holo-Caster could not locate any specimens with the selected type, search term, or filters.
+          </p>
+          <button
+            onClick={resetFilters}
+            className="px-5 py-2.5 rounded-full bg-[#00E5FF] text-black font-black text-xs uppercase tracking-widest hover:bg-cyan-300 transition-colors shadow-[0_0_15px_rgba(0,229,255,0.3)] cursor-pointer"
+          >
+            Clear All Filters
+          </button>
+        </div>
       ) : (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.1 }}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-0"
+        <motion.div
+          variants={staggerGridContainer}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6"
         >
-          {displayedPokemon.map((p) => (
-            <PokemonCard key={p.name} pokemon={p} contextList={displayedPokemon.map(dp => dp.name)} />
+          {filteredAndSortedPokemon.map((p) => (
+            <PokemonCard 
+              key={p.name} 
+              pokemon={p} 
+              contextList={contextList} 
+            />
           ))}
         </motion.div>
       )}

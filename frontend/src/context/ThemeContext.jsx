@@ -6,28 +6,50 @@ export const ThemeProvider = ({ children }) => {
   const [isShiny, setIsShiny] = useState(() => {
     return localStorage.getItem('isShiny') === 'true';
   });
-  
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('isDarkMode') === 'true'; // Default to false (Deep Blue)
+
+  // Supports 'dark' (Deep Kalos Blue), 'pitch-black', 'light' (Lumiose Daylight)
+  const [themeMode, setThemeMode] = useState(() => {
+    const saved = localStorage.getItem('kalosThemeMode');
+    if (saved) return saved;
+    // Check legacy isDarkMode boolean
+    const legacy = localStorage.getItem('isDarkMode');
+    if (legacy === 'true') return 'pitch-black';
+    return 'dark'; // Default to 9th-Gen Deep Kalos Blue
   });
 
   useEffect(() => {
-    localStorage.setItem('isShiny', isShiny);
+    localStorage.setItem('isShiny', String(isShiny));
   }, [isShiny]);
 
   useEffect(() => {
-    localStorage.setItem('isDarkMode', isDarkMode);
-    if (isDarkMode) {
-      document.body.classList.add('pitch-black');
-      document.body.classList.remove('dark');
-    } else {
-      document.body.classList.add('dark');
-      document.body.classList.remove('pitch-black');
-    }
-  }, [isDarkMode]);
+    localStorage.setItem('kalosThemeMode', themeMode);
+    document.body.classList.remove('dark', 'pitch-black', 'light');
+    document.body.classList.add(themeMode);
+  }, [themeMode]);
+
+  const cycleTheme = () => {
+    setThemeMode((prev) => {
+      if (prev === 'dark') return 'pitch-black';
+      if (prev === 'pitch-black') return 'light';
+      return 'dark';
+    });
+  };
+
+  const isDarkMode = themeMode !== 'light';
+  const setIsDarkMode = (val) => {
+    setThemeMode(val ? 'dark' : 'light');
+  };
 
   return (
-    <ThemeContext.Provider value={{ isShiny, setIsShiny, isDarkMode, setIsDarkMode }}>
+    <ThemeContext.Provider value={{
+      isShiny,
+      setIsShiny,
+      themeMode,
+      setThemeMode,
+      cycleTheme,
+      isDarkMode,
+      setIsDarkMode
+    }}>
       {children}
     </ThemeContext.Provider>
   );

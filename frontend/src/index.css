@@ -1,103 +1,154 @@
-/* Import Outfit font */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap');
+/* Import Outfit & Orbitron fonts */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-display: 'Orbitron', system-ui, sans-serif;
 }
 
+/* 9th-Gen Kalos Design Tokens */
 :root {
-  --color-primary: #0F172A; /* Slate 900 for lighter professional dark */
-  --color-bg-dark: #020617; /* Slate 950 for pitch black */
-  --color-bg-light: #F1F5F9; /* Very light slate for contrast */
-  --color-text-dark: #F8FAFC; 
-  --color-text-light: #1E293B; 
-}
-
-body {
-  margin: 0;
-  font-family: var(--font-sans);
-  background-color: var(--color-bg-light);
-  color: var(--color-text-light);
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-body.dark {
-  background-color: var(--color-primary);
-  color: var(--color-text-dark);
+  --bg-base: #0A0F1D;
+  --bg-secondary: #0F172A;
+  --bg-card: rgba(15, 23, 42, 0.65);
+  --bg-card-hover: rgba(26, 36, 61, 0.75);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(0, 229, 255, 0.35);
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --holo-blue: #00E5FF;
+  --holo-red: #FF3366;
+  --holo-glow: 0 0 25px rgba(0, 229, 255, 0.22);
+  --holo-red-glow: 0 0 25px rgba(255, 51, 102, 0.25);
+  --surface-blur: blur(16px);
 }
 
 body.pitch-black {
-  background-color: var(--color-bg-dark);
-  color: var(--color-text-dark);
+  --bg-base: #030712;
+  --bg-secondary: #0B0F19;
+  --bg-card: rgba(8, 12, 22, 0.85);
+  --bg-card-hover: rgba(16, 24, 40, 0.9);
+  --border-glass: rgba(255, 255, 255, 0.06);
+  --border-glow: rgba(0, 229, 255, 0.5);
+  --text-main: #FFFFFF;
+  --text-muted: #64748B;
+  --holo-blue: #00E5FF;
+  --holo-red: #FF2A6D;
+  --holo-glow: 0 0 30px rgba(0, 229, 255, 0.3);
+  --holo-red-glow: 0 0 30px rgba(255, 42, 109, 0.3);
 }
 
-/* Glassmorphism utility */
+body.light {
+  --bg-base: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-hover: rgba(241, 245, 249, 0.95);
+  --border-glass: rgba(0, 0, 0, 0.08);
+  --border-glow: rgba(2, 132, 199, 0.4);
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --holo-blue: #0284C7;
+  --holo-red: #E11D48;
+  --holo-glow: 0 0 20px rgba(2, 132, 199, 0.18);
+  --holo-red-glow: 0 0 20px rgba(225, 29, 72, 0.18);
+}
+
+/* Global Styles */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(ellipse at 50% -20%, rgba(0, 229, 255, 0.08), transparent 70%),
+    radial-gradient(ellipse at 90% 90%, rgba(255, 51, 102, 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+
+body.light {
+  background-image: 
+    radial-gradient(ellipse at 50% -20%, rgba(2, 132, 199, 0.08), transparent 70%),
+    radial-gradient(ellipse at 90% 90%, rgba(225, 29, 72, 0.05), transparent 60%);
+}
+
+/* 9th-Gen Kalos Glassmorphism */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1.5rem;
+  background: var(--bg-card);
+  backdrop-filter: var(--surface-blur);
+  -webkit-backdrop-filter: var(--surface-blur);
+  border: 1px solid var(--border-glass);
 }
 
-body.dark .glass, body.pitch-black .glass {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+.glass-interactive {
+  background: var(--bg-card);
+  backdrop-filter: var(--surface-blur);
+  -webkit-backdrop-filter: var(--surface-blur);
+  border: 1px solid var(--border-glass);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Wavy Hover Animation */
-@keyframes wave-aura {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.glass-interactive:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-glow);
+  box-shadow: var(--holo-glow);
 }
 
-.wavy-hover {
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+/* Holo-Caster scanlines & radar background */
+.holo-grid-bg {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
 }
 
-.wavy-hover::before {
-  content: '';
+body.light .holo-grid-bg {
+  background-image: 
+    linear-gradient(to right, rgba(2, 132, 199, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(2, 132, 199, 0.04) 1px, transparent 1px);
+}
+
+/* 3D Transform Utilities */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+/* Holographic Sheen Animation for 3D Cards */
+.holo-glare-effect {
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  inset: 0;
+  border-radius: inherit;
   background: linear-gradient(
-    45deg,
-    transparent 20%,
-    rgba(0, 229, 255, 0.05) 40%,
-    rgba(0, 229, 255, 0.15) 50%,
-    rgba(0, 229, 255, 0.05) 60%,
-    transparent 80%
+    135deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(0, 229, 255, 0.25) 35%,
+    rgba(255, 51, 102, 0.2) 65%,
+    transparent 100%
   );
-  background-size: 200% 200%;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  z-index: 1;
   pointer-events: none;
+  mix-blend-mode: overlay;
+  transition: opacity 0.2s ease;
 }
 
-.wavy-hover:hover::before {
-  opacity: 1;
-  animation: wave-aura 3s infinite linear;
-}
-
-/* Scrollbar */
+/* Custom futuristic scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 229, 255, 0.2);
-  border-radius: 4px;
+  background: rgba(0, 229, 255, 0.25);
+  border-radius: 9999px;
 }
-
-/* Fade-in for page transitions */
-.page-enter { opacity: 0; transform: translateY(20px); }
-.page-enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.5s, transform 0.5s; }
-.page-exit { opacity: 1; transform: translateY(0); }
-.page-exit-active { opacity: 0; transform: translateY(-20px); transition: opacity 0.5s, transform 0.5s; }
-
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.5);
+}
