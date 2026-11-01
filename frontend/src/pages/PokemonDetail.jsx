@@ -24,6 +24,7 @@ import { HexRadarChart } from '../components/charts/HexRadarChart';
 import { TypeHeatmap } from '../components/charts/TypeHeatmap';
 import { EvolutionFlowchart } from '../components/evolution/EvolutionFlowchart';
 import { CompetitiveStatCalculator } from '../components/calculator/CompetitiveStatCalculator';
+import { ParticleEnvironment } from '../components/3d/ParticleEnvironment';
 import { pageVariants } from '../constants/animations';
 
 const PokemonDetail = () => {
@@ -285,6 +286,9 @@ const PokemonDetail = () => {
       exit="exit"
       className="container mx-auto px-4 sm:px-6 pb-20 relative"
     >
+      {/* Type-Reactive 3D WebGL Particle Environment */}
+      <ParticleEnvironment type={primaryType} />
+
       {/* Dynamic Type-Based Ambient Background Glow */}
       <div
         className="fixed top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none opacity-20 transition-all duration-700"

@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
-import { GitCompare, Sparkles, Plus, X, ArrowRight, ShieldAlert, Award } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GitCompare, Sparkles, Plus, X, ArrowRight, ShieldAlert, Award, Scale, BarChart2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { TYPE_CONFIG } from '../constants/kalosData';
 import { ALL_TYPES, getDefenseMultiplier } from '../constants/typeMatchups';
 import { pageVariants, statBarVariants } from '../constants/animations';
+import MegaEvolutionLoader from '../components/3d/MegaEvolutionLoader';
+
+const TrueScaleArena = lazy(() => import('../components/3d/TrueScaleArena'));
 
 const PokemonCompare = () => {
   const { isShiny } = useTheme();
@@ -18,6 +21,7 @@ const PokemonCompare = () => {
   const [activeSlotModal, setActiveSlotModal] = useState(null);
   const [modalSearch, setModalSearch] = useState('');
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [viewMode, setViewMode] = useState('telemetry'); // 'telemetry' | 'arena'
 
   // Fetch Pokemon list for selection
   useEffect(() => {
@@ -73,6 +77,8 @@ const PokemonCompare = () => {
         types: d.types.map((t) => t.type.name),
         height: d.height / 10, // meters
         weight: d.weight / 10, // kg
+        heightMeters: d.height / 10,
+        weightKg: d.weight / 10,
         base_experience: d.base_experience,
         abilities: d.abilities.map((a) => ({
           name: a.ability.name,
@@ -272,8 +278,47 @@ const PokemonCompare = () => {
         </div>
       </div>
 
-      {/* Side-by-Side Combat Stats Analytics */}
+      {/* View Mode Segment Switcher */}
       {slot1 && slot2 && (
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex p-1.5 rounded-2xl glass border border-white/10 bg-black/40 shadow-xl">
+            <button
+              onClick={() => setViewMode('telemetry')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                viewMode === 'telemetry'
+                  ? 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-black shadow-[0_0_20px_rgba(0,229,255,0.4)]'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <BarChart2 size={15} />
+              <span>Telemetry Matrix</span>
+            </button>
+            <button
+              onClick={() => setViewMode('arena')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                viewMode === 'arena'
+                  ? 'bg-gradient-to-r from-[#FF3366] to-pink-600 text-white font-black shadow-[0_0_20px_rgba(255,51,102,0.4)]'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Scale size={15} />
+              <span>3D True-Scale Arena</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3D True-Scale Arena Mode */}
+      {slot1 && slot2 && viewMode === 'arena' && (
+        <div className="mb-10">
+          <Suspense fallback={<MegaEvolutionLoader message="Calibrating True-Scale 3D Holographic Chamber..." />}>
+            <TrueScaleArena pokemon1={slot1} pokemon2={slot2} />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Side-by-Side Combat Stats Analytics (Telemetry Mode) */}
+      {slot1 && slot2 && viewMode === 'telemetry' && (
         <div className="glass rounded-3xl p-6 sm:p-8 mb-10 border border-white/10">
           <div className="flex items-center justify-between pb-4 mb-6 border-b border-white/10">
             <h3 className="text-lg font-black uppercase tracking-wider text-white">

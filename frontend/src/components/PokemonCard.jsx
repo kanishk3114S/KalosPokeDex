@@ -14,6 +14,7 @@ const PokemonCard = ({ pokemon, contextList = [] }) => {
   const { isShiny } = useTheme();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [isHovered, setIsHovered] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [types, setTypes] = useState(pokemon.types || []);
   const audioRef = useRef(null);
@@ -82,6 +83,14 @@ const PokemonCard = ({ pokemon, contextList = [] }) => {
     handleMouseLeave();
   }, [handleMouseLeave]);
 
+  const handleCardClick = useCallback(() => {
+    if (isReleasing) return;
+    setIsReleasing(true);
+    setTimeout(() => {
+      navigate(`/pokemon/${pokemon.name}`, { state: { currentList: contextList } });
+    }, 280);
+  }, [isReleasing, navigate, pokemon.name, contextList]);
+
   const primaryType = types[0] || 'normal';
   const typeStyle = TYPE_CONFIG[primaryType] || TYPE_CONFIG.normal;
   const favStatus = isFavorite(pokemon.name);
@@ -100,11 +109,21 @@ const PokemonCard = ({ pokemon, contextList = [] }) => {
         onMouseMove={handleMouseMove}
         onMouseEnter={onCardMouseEnter}
         onMouseLeave={onCardMouseLeave}
-        onClick={() => navigate(`/pokemon/${pokemon.name}`, { state: { currentList: contextList } })}
+        onClick={handleCardClick}
         className="relative group rounded-3xl p-5 cursor-pointer glass-interactive border border-white/10 hover:border-[#00E5FF]/60 transition-colors duration-300 flex flex-col items-center overflow-hidden shadow-lg select-none"
       >
         {/* Hidden Audio Cry Player */}
         <audio ref={audioRef} src={audioUrl} preload="none" />
+
+        {/* Cinematic Pokéball Throw / Energy Release Burst */}
+        {isReleasing && (
+          <motion.div
+            initial={{ scale: 0.1, opacity: 1 }}
+            animate={{ scale: 14, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="absolute inset-0 m-auto w-16 h-16 rounded-full border-4 border-[#00E5FF] bg-gradient-to-r from-[#00E5FF] to-[#FF3366] pointer-events-none z-50 shadow-[0_0_50px_#00E5FF]"
+          />
+        )}
 
         {/* Dynamic Holographic Glare Sheen */}
         <motion.div
