@@ -39,19 +39,20 @@ body.pitch-black {
   --holo-red-glow: 0 0 30px rgba(255, 42, 109, 0.3);
 }
 
+/* Premium Soft-Grey & Silver Light Mode (Zero Eye Strain) */
 body.light {
-  --bg-base: #F8FAFC;
-  --bg-secondary: #FFFFFF;
-  --bg-card: rgba(255, 255, 255, 0.85);
-  --bg-card-hover: rgba(241, 245, 249, 0.95);
-  --border-glass: rgba(0, 0, 0, 0.08);
-  --border-glow: rgba(2, 132, 199, 0.4);
-  --text-main: #0F172A;
-  --text-muted: #64748B;
-  --holo-blue: #0284C7;
-  --holo-red: #E11D48;
-  --holo-glow: 0 0 20px rgba(2, 132, 199, 0.18);
-  --holo-red-glow: 0 0 20px rgba(225, 29, 72, 0.18);
+  --bg-base: #E2E8F0;           /* Soft Slate Grey */
+  --bg-secondary: #EEF2F6;      /* Polished Silver Mist */
+  --bg-card: rgba(241, 245, 249, 0.75);
+  --bg-card-hover: rgba(255, 255, 255, 0.92);
+  --border-glass: rgba(100, 116, 139, 0.22);
+  --border-glow: rgba(2, 132, 199, 0.5);
+  --text-main: #0F172A;          /* Deep Slate Navy for high legibility */
+  --text-muted: #475569;
+  --holo-blue: #0284C7;          /* Lumiose Sapphire Blue */
+  --holo-red: #E11D48;           /* Kalos Crimson Red */
+  --holo-glow: 0 0 25px rgba(2, 132, 199, 0.2);
+  --holo-red-glow: 0 0 25px rgba(225, 29, 72, 0.2);
 }
 
 /* Global Styles */
@@ -60,7 +61,7 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg-base);
   color: var(--text-main);
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+  transition: background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
   min-height: 100vh;
   overflow-x: hidden;
   background-image: 
@@ -71,8 +72,40 @@ body {
 
 body.light {
   background-image: 
-    radial-gradient(ellipse at 50% -20%, rgba(2, 132, 199, 0.08), transparent 70%),
-    radial-gradient(ellipse at 90% 90%, rgba(225, 29, 72, 0.05), transparent 60%);
+    radial-gradient(ellipse at 50% -20%, rgba(2, 132, 199, 0.12), transparent 70%),
+    radial-gradient(ellipse at 90% 90%, rgba(225, 29, 72, 0.08), transparent 60%);
+}
+
+/* Soft-Grey Theme Adjustments for High Contrast Legibility */
+body.light h1,
+body.light h2,
+body.light h3,
+body.light h4,
+body.light .text-white {
+  color: var(--text-main) !important;
+}
+
+body.light .text-gray-300,
+body.light .text-gray-200 {
+  color: #334155 !important;
+}
+
+body.light .text-gray-400 {
+  color: #475569 !important;
+}
+
+body.light .bg-black\/20,
+body.light .bg-black\/25,
+body.light .bg-black\/30,
+body.light .bg-black\/40 {
+  background-color: rgba(203, 213, 225, 0.45) !important;
+}
+
+body.light .border-white\/5,
+body.light .border-white\/10,
+body.light .border-white\/15,
+body.light .border-white\/20 {
+  border-color: rgba(100, 116, 139, 0.2) !important;
 }
 
 /* 9th-Gen Kalos Glassmorphism */
@@ -97,20 +130,6 @@ body.light {
   box-shadow: var(--holo-glow);
 }
 
-/* Holo-Caster scanlines & radar background */
-.holo-grid-bg {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
-}
-
-body.light .holo-grid-bg {
-  background-image: 
-    linear-gradient(to right, rgba(2, 132, 199, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(2, 132, 199, 0.04) 1px, transparent 1px);
-}
-
 /* 3D Transform Utilities */
 .preserve-3d {
   transform-style: preserve-3d;
@@ -127,14 +146,24 @@ body.light .holo-grid-bg {
   border-radius: inherit;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(0, 229, 255, 0.25) 35%,
-    rgba(255, 51, 102, 0.2) 65%,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(0, 229, 255, 0.22) 35%,
+    rgba(255, 51, 102, 0.18) 65%,
     transparent 100%
   );
   pointer-events: none;
   mix-blend-mode: overlay;
   transition: opacity 0.2s ease;
+}
+
+body.light .holo-glare-effect {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(2, 132, 199, 0.2) 35%,
+    rgba(225, 29, 72, 0.15) 65%,
+    transparent 100%
+  );
 }
 
 /* Custom futuristic scrollbar */
@@ -148,6 +177,9 @@ body.light .holo-grid-bg {
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 229, 255, 0.25);
   border-radius: 9999px;
+}
+body.light ::-webkit-scrollbar-thumb {
+  background: rgba(2, 132, 199, 0.35);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 229, 255, 0.5);

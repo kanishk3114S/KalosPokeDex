@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -68,19 +68,19 @@ const PokemonCard = ({ pokemon, contextList = [] }) => {
 
   const audioUrl = `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`;
 
-  const onCardMouseEnter = () => {
+  const onCardMouseEnter = useCallback(() => {
     setIsHovered(true);
     if (audioRef.current) {
       audioRef.current.volume = 0.18;
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     }
-  };
+  }, []);
 
-  const onCardMouseLeave = () => {
+  const onCardMouseLeave = useCallback(() => {
     setIsHovered(false);
     handleMouseLeave();
-  };
+  }, [handleMouseLeave]);
 
   const primaryType = types[0] || 'normal';
   const typeStyle = TYPE_CONFIG[primaryType] || TYPE_CONFIG.normal;
@@ -221,4 +221,4 @@ const PokemonCard = ({ pokemon, contextList = [] }) => {
   );
 };
 
-export default PokemonCard;
+export default memo(PokemonCard);

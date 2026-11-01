@@ -12,7 +12,8 @@ import {
   X, 
   Layers, 
   Shield, 
-  GitCompare 
+  GitCompare,
+  Compass
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +28,7 @@ const Navbar = () => {
   const navLinks = [
     { path: '/dashboard', label: 'Kalos Roster', icon: Layers },
     { path: '/mega-dex', label: 'Mega Dex', icon: Sparkles },
+    { path: '/map', label: '3D Kalos Map', icon: Compass },
     { path: '/team-builder', label: 'Team Builder', icon: Shield },
     { path: '/compare', label: 'Compare', icon: GitCompare }
   ];
@@ -38,7 +40,7 @@ const Navbar = () => {
   };
 
   const getThemeLabel = () => {
-    if (themeMode === 'light') return 'Lumiose Light';
+    if (themeMode === 'light') return 'Soft Grey';
     if (themeMode === 'pitch-black') return 'Pitch Black';
     return 'Deep Blue';
   };

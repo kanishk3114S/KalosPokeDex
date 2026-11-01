@@ -7,6 +7,7 @@ import PokemonDetail from './pages/PokemonDetail';
 import MegaDex from './pages/MegaDex';
 import TeamBuilder from './pages/TeamBuilder';
 import PokemonCompare from './pages/PokemonCompare';
+import KalosMap from './pages/KalosMap';
 import Navbar from './components/Navbar';
 import Credits from './components/Credits';
 import AuthModal from './components/AuthModal';
@@ -28,6 +29,7 @@ const AnimatedRoutes = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/mega-dex" element={<MegaDex />} />
           <Route path="/pokemon/:id" element={<PokemonDetail />} />
+          <Route path="/map" element={<KalosMap />} />
           <Route path="/team-builder" element={<TeamBuilder />} />
           <Route path="/compare" element={<PokemonCompare />} />
           <Route path="/login" element={<Login />} />

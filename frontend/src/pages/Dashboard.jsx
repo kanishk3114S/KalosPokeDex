@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -129,13 +129,13 @@ const Dashboard = () => {
     return list;
   }, [pokemon, searchTerm, activeFilter, selectedType, sortAttribute, sortOrder, isFavorite]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedType('all');
     setActiveFilter('all');
     setSortAttribute('id');
     setSortOrder('asc');
-  };
+  }, []);
 
   const contextList = filteredAndSortedPokemon.map((p) => p.name);
 
