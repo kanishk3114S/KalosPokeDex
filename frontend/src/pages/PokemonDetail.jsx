@@ -7,20 +7,24 @@ import {
   Sparkles, 
   Volume2, 
   Shield, 
-  Swords, 
-  Heart, 
-  Zap, 
-  GitCommit, 
-  Dna, 
-  Info, 
-  ChevronRight, 
+  Compass, 
+  BookOpen, 
+  Sliders, 
+  Activity, 
   Layers, 
-  CheckCircle2 
+  ChevronRight, 
+  Flame, 
+  RotateCcw,
+  Zap
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { TYPE_CONFIG, ASH_KALOS_POKEMON } from '../constants/kalosData';
-import { ALL_TYPES, getDefenseMultiplier } from '../constants/typeMatchups';
-import { pageVariants, statBarVariants } from '../constants/animations';
+import { POKEMON_FORM_MAPPINGS, KALOS_HABITAT_ROUTES } from '../constants/pokemonForms';
+import { HexRadarChart } from '../components/charts/HexRadarChart';
+import { TypeHeatmap } from '../components/charts/TypeHeatmap';
+import { EvolutionFlowchart } from '../components/evolution/EvolutionFlowchart';
+import { CompetitiveStatCalculator } from '../components/calculator/CompetitiveStatCalculator';
+import { pageVariants } from '../constants/animations';
 
 const PokemonDetail = () => {
   const { id } = useParams();
@@ -28,37 +32,52 @@ const PokemonDetail = () => {
   const location = useLocation();
   const { isShiny } = useTheme();
 
+  // Active form (e.g. standard or mega)
+  const [activePokemonId, setActivePokemonId] = useState(id);
+
   const [data, setData] = useState(null);
   const [speciesData, setSpeciesData] = useState(null);
-  const [trivia, setTrivia] = useState('');
+  const [allFlavorTexts, setAllFlavorTexts] = useState([]);
+  const [selectedGameVersion, setSelectedGameVersion] = useState('x');
   const [genera, setGenera] = useState('');
   const [evolutionTree, setEvolutionTree] = useState([]);
   const [abilityDetails, setAbilityDetails] = useState({});
   const [loading, setLoading] = useState(true);
-  const [activeMoveTab, setActiveMoveTab] = useState('level-up'); // 'level-up', 'machine', 'egg', 'tutor'
+
+  // View modes
+  const [artMode, setArtMode] = useState('artwork'); // 'artwork' or 'animated'
+  const [activeStatTab, setActiveStatTab] = useState('radar'); // 'radar', 'bars', 'calculator'
+  const [activeMoveTab, setActiveMoveTab] = useState('level-up');
   const [moveSearch, setMoveSearch] = useState('');
 
+  // Audio Cry playing state
+  const [isPlayingCry, setIsPlayingCry] = useState(false);
+
   useEffect(() => {
+    setActivePokemonId(id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
-  // Evolution chain conditions parser
+  // Available forms for this Pokémon (Mega, Primal, Ash-Greninja, etc.)
+  const availableForms = useMemo(() => {
+    const baseKey = id.split('-')[0].toLowerCase();
+    return POKEMON_FORM_MAPPINGS[baseKey] || POKEMON_FORM_MAPPINGS[id.toLowerCase()] || null;
+  }, [id]);
+
+  // Evolution trigger condition parser
   const parseEvoTrigger = (details) => {
-    if (!details || details.length === 0) return 'Base';
+    if (!details || details.length === 0) return 'Base Form';
     const d = details[0];
     const parts = [];
-    if (d.min_level) parts.push(`Level ${d.min_level}`);
+    if (d.min_level) parts.push(`Lv. ${d.min_level}`);
     if (d.item) parts.push(`Use ${d.item.name.replace('-', ' ')}`);
     if (d.held_item) parts.push(`Hold ${d.held_item.name.replace('-', ' ')}`);
     if (d.trigger?.name === 'trade') parts.push('Trade');
-    if (d.min_happiness) parts.push(`Friendship (220+)`);
-    if (d.min_affection) parts.push(`Affection (2+ hearts)`);
+    if (d.min_happiness) parts.push('Friendship (220+)');
     if (d.known_move) parts.push(`Knows ${d.known_move.name.replace('-', ' ')}`);
     if (d.time_of_day) parts.push(`${d.time_of_day} time`);
-    if (d.needs_overworld_rain) parts.push('During Rain');
-    if (d.gender === 1) parts.push('Female Only');
-    if (d.gender === 2) parts.push('Male Only');
-    return parts.join(' + ') || 'Special Condition';
+    if (d.needs_overworld_rain) parts.push('In Rain');
+    return parts.join(' + ') || 'Special';
   };
 
   useEffect(() => {
@@ -68,14 +87,13 @@ const PokemonDetail = () => {
       try {
         setLoading(true);
 
-        // 1. Fetch core Pokemon endpoint
-        const pkmnRes = await axios.get(`https://pokeapi.co/api/v2/pokemon/${id}`);
+        const pkmnRes = await axios.get(`https://pokeapi.co/api/v2/pokemon/${activePokemonId}`);
         const pData = pkmnRes.data;
 
         if (!isMounted) return;
         setData(pData);
 
-        // Fetch ability descriptions in parallel
+        // Fetch abilities
         const abilitiesMap = {};
         await Promise.all(
           pData.abilities.map(async (a) => {
@@ -91,7 +109,7 @@ const PokemonDetail = () => {
         );
         if (isMounted) setAbilityDetails(abilitiesMap);
 
-        // 2. Fetch Species endpoint
+        // Fetch species data
         const speciesName = pData.species.name;
         const speciesRes = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${speciesName}`);
         const sData = speciesRes.data;
@@ -99,17 +117,31 @@ const PokemonDetail = () => {
         if (!isMounted) return;
         setSpeciesData(sData);
 
-        // Genera classification (e.g. "Bubble Frog Pokémon")
+        // Filter English multi-game flavor texts
+        const engFlavors = sData.flavor_text_entries.filter((f) => f.language.name === 'en');
+        const uniqueFlavors = [];
+        const seenVersions = new Set();
+
+        engFlavors.forEach((f) => {
+          if (!seenVersions.has(f.version.name)) {
+            seenVersions.add(f.version.name);
+            uniqueFlavors.push({
+              version: f.version.name,
+              text: f.flavor_text.replace(/\f/g, ' ').replace(/\n/g, ' ')
+            });
+          }
+        });
+
+        setAllFlavorTexts(uniqueFlavors);
+        if (uniqueFlavors.length > 0) {
+          const hasX = uniqueFlavors.find((f) => f.version === 'x');
+          setSelectedGameVersion(hasX ? 'x' : uniqueFlavors[0].version);
+        }
+
         const engGenus = sData.genera.find((g) => g.language.name === 'en');
         if (engGenus) setGenera(engGenus.genus);
 
-        // English trivia
-        const engFlavor = sData.flavor_text_entries.find((f) => f.language.name === 'en');
-        if (engFlavor) {
-          setTrivia(engFlavor.flavor_text.replace(/\f/g, ' ').replace(/\n/g, ' '));
-        }
-
-        // 3. Fetch Evolution Chain
+        // Evolution chain
         if (sData.evolution_chain?.url) {
           const evoRes = await axios.get(sData.evolution_chain.url);
           const chainList = [];
@@ -124,14 +156,13 @@ const PokemonDetail = () => {
               condition: triggerDesc
             });
 
-            // Special Ash-Greninja branch
             if (node.species.name === 'greninja') {
               chainList.push({
                 name: 'greninja-ash',
                 id: '10116',
                 artwork: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/10116.png`,
                 shinyArtwork: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/10116.png`,
-                condition: 'Battle Bond (Ash-Greninja)'
+                condition: 'Battle Bond'
               });
             }
 
@@ -147,38 +178,34 @@ const PokemonDetail = () => {
           if (isMounted) setEvolutionTree(chainList);
         }
       } catch (err) {
-        console.error('Failed fetching complete data:', err);
+        console.error('Failed fetching data:', err);
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
     fetchCompleteData();
-
     return () => { isMounted = false; };
-  }, [id]);
+  }, [activePokemonId]);
 
-  // Audio cry player
+  // Audio cry player with animation state
   const playCry = () => {
     if (!data) return;
     const audio = new Audio(`https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${data.id}.ogg`);
     audio.volume = 0.25;
-    audio.play().catch(() => {});
+    setIsPlayingCry(true);
+    audio.onended = () => setIsPlayingCry(false);
+    audio.onerror = () => setIsPlayingCry(false);
+    audio.play().catch(() => setIsPlayingCry(false));
   };
 
-  // Group moves by learn method
+  // Categorize move pool
   const categorizedMoves = useMemo(() => {
     if (!data || !data.moves) return { 'level-up': [], 'machine': [], 'egg': [], 'tutor': [] };
 
-    const groups = {
-      'level-up': [],
-      'machine': [],
-      'egg': [],
-      'tutor': []
-    };
+    const groups = { 'level-up': [], 'machine': [], 'egg': [], 'tutor': [] };
 
     data.moves.forEach((m) => {
-      // Find latest version group details
       const detail = m.version_group_details[m.version_group_details.length - 1];
       const method = detail?.move_learn_method?.name || 'level-up';
       const level = detail?.level_learned_at || 0;
@@ -189,14 +216,10 @@ const PokemonDetail = () => {
         method
       };
 
-      if (groups[method]) {
-        groups[method].push(item);
-      } else {
-        groups['tutor'].push(item);
-      }
+      if (groups[method]) groups[method].push(item);
+      else groups['tutor'].push(item);
     });
 
-    // Sort level-up moves by level ascending
     groups['level-up'].sort((a, b) => a.level - b.level);
     return groups;
   }, [data]);
@@ -216,39 +239,43 @@ const PokemonDetail = () => {
     );
   }
 
+  const primaryType = data.types[0]?.type.name || 'normal';
+  const typeConfig = TYPE_CONFIG[primaryType] || TYPE_CONFIG.normal;
   const isAsh = ASH_KALOS_POKEMON.includes(data.name);
+
   const formattedId = data.name === 'greninja-ash' ? '#0658-A' : `#${String(data.id).padStart(4, '0')}`;
   const displayName = data.name === 'greninja-ash' ? 'ASH-GRENINJA' : data.name.replace('-', ' ');
 
-  const artworkNormal = data.sprites.other?.['official-artwork']?.front_default || data.sprites.front_default;
-  const artworkShiny = data.sprites.other?.['official-artwork']?.front_shiny || artworkNormal;
-  const currentImg = isShiny ? artworkShiny : artworkNormal;
+  // Artwork & Showdown GIF
+  const staticArtwork = isShiny
+    ? data.sprites.other?.['official-artwork']?.front_shiny || data.sprites.front_shiny
+    : data.sprites.other?.['official-artwork']?.front_default || data.sprites.front_default;
 
-  // Gender Ratio calculation
-  const genderRate = speciesData?.gender_rate ?? -1;
-  const isGenderless = genderRate === -1;
-  const femalePercentage = isGenderless ? 0 : (genderRate / 8) * 100;
-  const malePercentage = isGenderless ? 0 : 100 - femalePercentage;
+  const showdownGif = isShiny
+    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/shiny/${data.id}.gif`
+    : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/${data.id}.gif`;
 
-  // EV Yields calculation
-  const evYields = data.stats.filter((s) => s.effort > 0).map((s) => `${s.effort} ${s.stat.name.replace('-', ' ').toUpperCase()}`);
+  const currentDisplayImg = artMode === 'animated' ? showdownGif : staticArtwork;
 
-  // Base Stats
-  const statNames = {
-    hp: 'HP',
-    attack: 'Attack',
-    defense: 'Defense',
-    'special-attack': 'Sp. Atk',
-    'special-defense': 'Sp. Def',
-    speed: 'Speed'
+  // Base Stats Map
+  const baseStatsMap = {
+    hp: data.stats[0]?.base_stat || 0,
+    attack: data.stats[1]?.base_stat || 0,
+    defense: data.stats[2]?.base_stat || 0,
+    spAtk: data.stats[3]?.base_stat || 0,
+    spDef: data.stats[4]?.base_stat || 0,
+    speed: data.stats[5]?.base_stat || 0,
   };
+  const totalBST = Object.values(baseStatsMap).reduce((a, b) => a + b, 0);
 
-  const totalBST = data.stats.reduce((acc, s) => acc + s.base_stat, 0);
+  // Active Flavor Text
+  const currentFlavor = allFlavorTexts.find((f) => f.version === selectedGameVersion) || allFlavorTexts[0];
 
-  // Moves filtered by search
-  const displayedMoves = (categorizedMoves[activeMoveTab] || []).filter((m) =>
-    m.name.toLowerCase().includes(moveSearch.toLowerCase().trim())
-  );
+  // Kalos Habitat Route
+  const baseName = data.name.split('-')[0].toLowerCase();
+  const habitatRoute = KALOS_HABITAT_ROUTES[data.name.toLowerCase()] || KALOS_HABITAT_ROUTES[baseName] || 'Wild Kalos Wilderness';
+
+  const typeNames = data.types.map((t) => t.type.name);
 
   return (
     <motion.div
@@ -256,10 +283,16 @@ const PokemonDetail = () => {
       initial="initial"
       animate="animate"
       exit="exit"
-      className="container mx-auto px-4 sm:px-6 pb-20"
+      className="container mx-auto px-4 sm:px-6 pb-20 relative"
     >
-      {/* Top Navigation Bar */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Dynamic Type-Based Ambient Background Glow */}
+      <div
+        className="fixed top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none opacity-20 transition-all duration-700"
+        style={{ backgroundColor: typeConfig.glow || '#00E5FF' }}
+      />
+
+      {/* Navigation & Audio Cry Controls */}
+      <div className="flex items-center justify-between mb-6 relative z-10">
         <button
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2 px-4 py-2 rounded-full glass border border-white/10 hover:border-[#00E5FF] text-xs font-bold uppercase tracking-wider text-gray-300 hover:text-white transition-all cursor-pointer"
@@ -268,43 +301,97 @@ const PokemonDetail = () => {
           <span>Return to Roster</span>
         </button>
 
-        <button
-          onClick={playCry}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#00E5FF]/15 border border-[#00E5FF]/40 text-[#00E5FF] hover:bg-[#00E5FF]/25 text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_15px_rgba(0,229,255,0.2)]"
-        >
-          <Volume2 size={14} />
-          <span>Play Cry</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Habitat Route Button ("Find in Kalos") */}
+          <button
+            onClick={() => navigate('/map')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-black/40 border border-white/15 hover:border-[#00E5FF] text-xs font-mono font-bold text-gray-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <Compass size={14} className="text-[#00E5FF]" />
+            <span className="hidden sm:inline">Find in Kalos:</span>
+            <span className="text-[#00E5FF] truncate max-w-[140px]">{habitatRoute}</span>
+          </button>
+
+          {/* Cry Audio Button */}
+          <button
+            onClick={playCry}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md ${
+              isPlayingCry
+                ? 'bg-[#00E5FF] text-black border-[#00E5FF] scale-105 shadow-cyan-500/40'
+                : 'bg-[#00E5FF]/15 border-[#00E5FF]/40 text-[#00E5FF] hover:bg-[#00E5FF]/25'
+            }`}
+          >
+            <Volume2 size={14} className={isPlayingCry ? 'animate-bounce' : ''} />
+            <span>{isPlayingCry ? 'Playing Cry...' : 'Play Cry'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Hero Specimen Deck */}
-      <div className="glass rounded-3xl p-6 sm:p-10 mb-8 border border-white/15 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#00E5FF]/15 to-[#FF3366]/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Form & Mega Evolution Switcher Tabs */}
+      {availableForms && availableForms.length > 1 && (
+        <div className="mb-6 p-1.5 rounded-2xl glass border border-white/10 flex items-center gap-2 overflow-x-auto select-none relative z-10">
+          <span className="text-[10px] font-mono uppercase font-bold text-gray-400 px-3 shrink-0 flex items-center gap-1">
+            <Zap size={12} className="text-yellow-400" /> FORMS & MEGAS:
+          </span>
+          {availableForms.map((f) => {
+            const isSelected = activePokemonId.toLowerCase() === f.idOrName.toLowerCase();
+            return (
+              <button
+                key={f.idOrName}
+                onClick={() => setActivePokemonId(f.idOrName)}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-[#00E5FF] to-cyan-400 text-black border-[#00E5FF] shadow-lg shadow-cyan-500/25'
+                    : 'bg-white/5 text-gray-300 border-white/10 hover:text-white'
+                }`}
+              >
+                {f.formName}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
+      {/* Hero Specimen Dossier */}
+      <div className="glass rounded-3xl p-6 sm:p-10 mb-8 border border-white/15 relative overflow-hidden shadow-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-          {/* Left: 3D Holographic Artwork Spotlight */}
+          {/* Left: 3D Artwork / Showdown Animated Sprite Viewer */}
           <div className="lg:col-span-5 flex flex-col items-center">
             <div className="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#00E5FF]/20 via-transparent to-[#FF3366]/20 blur-3xl pointer-events-none" />
+              <div className="absolute inset-0 rounded-full blur-3xl opacity-35" style={{ backgroundColor: typeConfig.glow }} />
               <motion.img
-                key={currentImg}
+                key={`${currentDisplayImg}-${artMode}`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4 }}
-                src={currentImg}
+                transition={{ duration: 0.35 }}
+                src={currentDisplayImg}
                 alt={displayName}
                 className="w-full h-full object-contain filter drop-shadow-[0_20px_30px_rgba(0,0,0,0.6)] relative z-10"
               />
             </div>
 
-            {/* Variant tag */}
-            <div className="mt-4 flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-xs font-mono tracking-widest text-gray-300 uppercase">
-              <Sparkles size={12} className={isShiny ? 'text-yellow-400' : 'text-[#00E5FF]'} />
-              <span>{isShiny ? 'Shiny Variant Active' : 'Standard Specimen Form'}</span>
+            {/* Artwork / Animated Sprite Toggle Controls */}
+            <div className="mt-4 flex items-center gap-2 bg-black/40 p-1 rounded-full border border-white/10 text-xs">
+              <button
+                onClick={() => setArtMode('artwork')}
+                className={`px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-all ${
+                  artMode === 'artwork' ? 'bg-[#00E5FF] text-black' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Official Artwork
+              </button>
+              <button
+                onClick={() => setArtMode('animated')}
+                className={`px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-all ${
+                  artMode === 'animated' ? 'bg-[#FF3366] text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Showdown GIF
+              </button>
             </div>
           </div>
 
-          {/* Right: Telemetry & Specimen Identity */}
+          {/* Right: Specimen Identity & Telemetry */}
           <div className="lg:col-span-7">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-mono font-black text-[#00E5FF] tracking-wider">
@@ -342,14 +429,32 @@ const PokemonDetail = () => {
               })}
             </div>
 
-            {/* Trivia Quote */}
-            {trivia && (
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-gray-300 text-sm leading-relaxed italic mb-6">
-                "{trivia}"
+            {/* Multi-Game Flavor Text Selector */}
+            <div className="mb-6 p-4 rounded-2xl bg-black/25 border border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <BookOpen size={12} className="text-[#00E5FF]" /> POKÉDEX ARCHIVE ENTRY:
+                </span>
+                {allFlavorTexts.length > 0 && (
+                  <select
+                    value={selectedGameVersion}
+                    onChange={(e) => setSelectedGameVersion(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/15 text-white text-[10px] font-mono font-bold uppercase focus:outline-none focus:border-[#00E5FF] cursor-pointer"
+                  >
+                    {allFlavorTexts.map((f) => (
+                      <option key={f.version} value={f.version} className="bg-[#0F172A] text-white">
+                        Pokémon {f.version.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-            )}
+              <p className="text-xs sm:text-sm text-gray-300 leading-relaxed italic">
+                "{currentFlavor?.text || 'No archive entry recorded.'}"
+              </p>
+            </div>
 
-            {/* Specimen Telemetry Grid */}
+            {/* Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-2xl bg-black/25 border border-white/5 text-center">
                 <span className="text-[10px] font-mono text-gray-400 block uppercase">HEIGHT</span>
@@ -364,99 +469,140 @@ const PokemonDetail = () => {
                 <span className="font-mono font-bold text-white text-sm">{data.base_experience || 'N/A'}</span>
               </div>
               <div className="p-3 rounded-2xl bg-black/25 border border-white/5 text-center">
-                <span className="text-[10px] font-mono text-gray-400 block uppercase">CATCH RATE</span>
-                <span className="font-mono font-bold text-white text-sm">{speciesData?.capture_rate || 45}</span>
+                <span className="text-[10px] font-mono text-gray-400 block uppercase">BST TOTAL</span>
+                <span className="font-mono font-black text-[#00E5FF] text-sm">{totalBST}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Breeding & Biology Telemetry */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Gender Distribution */}
-        <div className="glass rounded-3xl p-6 border border-white/10">
-          <h3 className="text-xs font-mono font-black uppercase tracking-wider text-[#00E5FF] mb-3">
-            Gender Distribution
-          </h3>
-          {isGenderless ? (
-            <p className="text-sm font-bold text-gray-300">Genderless / Unknown</p>
-          ) : (
-            <div>
-              <div className="flex justify-between text-xs font-mono font-bold mb-2">
-                <span className="text-blue-400">♂ {malePercentage.toFixed(1)}%</span>
-                <span className="text-pink-400">♀ {femalePercentage.toFixed(1)}%</span>
-              </div>
-              <div className="w-full bg-white/10 rounded-full h-2 flex overflow-hidden">
-                <div className="bg-blue-500 h-full" style={{ width: `${malePercentage}%` }} />
-                <div className="bg-pink-500 h-full" style={{ width: `${femalePercentage}%` }} />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Egg Groups & Hatch Cycles */}
-        <div className="glass rounded-3xl p-6 border border-white/10">
-          <h3 className="text-xs font-mono font-black uppercase tracking-wider text-[#00E5FF] mb-3">
-            Egg Groups & Cycles
-          </h3>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {speciesData?.egg_groups?.map((g) => (
-              <span
-                key={g.name}
-                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-bold uppercase text-gray-300"
-              >
-                {g.name.replace('-', ' ')}
-              </span>
-            ))}
-          </div>
-          <p className="text-xs font-mono text-gray-400 mt-2">
-            Hatch Counter: {speciesData?.hatch_counter ? `${speciesData.hatch_counter * 255} steps` : 'N/A'}
-          </p>
-        </div>
-
-        {/* EV Yields */}
-        <div className="glass rounded-3xl p-6 border border-white/10">
-          <h3 className="text-xs font-mono font-black uppercase tracking-wider text-[#00E5FF] mb-3">
-            Effort Values (EV Yield)
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {evYields.length > 0 ? (
-              evYields.map((yieldText, idx) => (
-                <span
-                  key={idx}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-xs font-bold"
-                >
-                  +{yieldText}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs text-gray-400 font-mono">None</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Ability Classification Matrix */}
+      {/* Weakness & Resistance Heatmap Grid */}
       <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10">
-        <h3 className="text-lg font-black uppercase tracking-wider text-white mb-6">
+        <div className="pb-4 mb-6 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-black uppercase tracking-wider text-white">
+              Elemental Weakness & Resistance Heatmap
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Exact damage multipliers taken from all 18 attack types.
+            </p>
+          </div>
+        </div>
+        <TypeHeatmap types={typeNames} />
+      </div>
+
+      {/* Combat Stats: Hexagonal Radar Chart & Competitive Tuner */}
+      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-white/10 gap-3">
+          <div>
+            <h3 className="text-base font-black uppercase tracking-wider text-white">
+              Combat Statistics & Performance
+            </h3>
+            <span className="text-xs font-mono text-[#00E5FF] font-bold">
+              Base Stat Total: {totalBST}
+            </span>
+          </div>
+
+          {/* Visual Mode Switcher */}
+          <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+            <button
+              onClick={() => setActiveStatTab('radar')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
+                activeStatTab === 'radar' ? 'bg-[#00E5FF] text-black shadow-sm' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Radar Chart
+            </button>
+            <button
+              onClick={() => setActiveStatTab('bars')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
+                activeStatTab === 'bars' ? 'bg-[#00E5FF] text-black shadow-sm' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Stat Bars
+            </button>
+            <button
+              onClick={() => setActiveStatTab('calculator')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer flex items-center gap-1 ${
+                activeStatTab === 'calculator' ? 'bg-[#FF3366] text-white shadow-sm' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Sliders size={12} />
+              <span>EV/IV Calculator</span>
+            </button>
+          </div>
+        </div>
+
+        {activeStatTab === 'radar' ? (
+          <div className="py-4 flex justify-center">
+            <HexRadarChart stats={baseStatsMap} size={340} />
+          </div>
+        ) : activeStatTab === 'bars' ? (
+          <div className="space-y-4 max-w-3xl mx-auto py-2">
+            {[
+              { label: 'HP', key: 'hp' },
+              { label: 'Attack', key: 'attack' },
+              { label: 'Defense', key: 'defense' },
+              { label: 'Sp. Atk', key: 'spAtk' },
+              { label: 'Sp. Def', key: 'spDef' },
+              { label: 'Speed', key: 'speed' }
+            ].map(({ label, key }) => {
+              const val = baseStatsMap[key] || 0;
+              const pct = Math.min((val / 255) * 100, 100);
+
+              return (
+                <div key={key}>
+                  <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-200 mb-1">
+                    <span>{label}</span>
+                    <span className="text-[#00E5FF] font-mono">{val}</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.75, ease: 'easeOut' }}
+                      className="bg-gradient-to-r from-blue-500 via-[#00E5FF] to-cyan-300 h-full rounded-full"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <CompetitiveStatCalculator baseStats={baseStatsMap} pokemonName={data.name} />
+        )}
+      </div>
+
+      {/* Evolutionary Lineage Flowchart */}
+      {evolutionTree.length > 0 && (
+        <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10">
+          <h3 className="text-base font-black uppercase tracking-wider text-white mb-6 text-center">
+            Evolutionary Lineage & Branching Flowchart
+          </h3>
+          <EvolutionFlowchart chain={evolutionTree} currentName={data.name} />
+        </div>
+      )}
+
+      {/* Ability Intelligence */}
+      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10">
+        <h3 className="text-base font-black uppercase tracking-wider text-white mb-6">
           Classified Combat Abilities
         </h3>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.abilities.map((a) => (
             <div
               key={a.ability.name}
-              className={`p-4 rounded-2xl glass border transition-colors ${
+              className={`p-4 rounded-2xl glass border ${
                 a.is_hidden ? 'border-[#00E5FF]/40 bg-[#00E5FF]/5' : 'border-white/10'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-black uppercase tracking-wider text-white">
+                <h4 className="text-sm font-black uppercase text-white">
                   {a.ability.name.replace('-', ' ')}
                 </h4>
                 {a.is_hidden && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#00E5FF] px-2 py-0.5 rounded bg-[#00E5FF]/20 border border-[#00E5FF]/40">
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40">
                     Hidden Ability
                   </span>
                 )}
@@ -469,112 +615,27 @@ const PokemonDetail = () => {
         </div>
       </div>
 
-      {/* Evolutionary Flowchart Lineage */}
-      {evolutionTree.length > 0 && (
-        <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10 text-center">
-          <h3 className="text-lg font-black uppercase tracking-wider text-white mb-6">
-            Evolutionary Lineage Flowchart
-          </h3>
-
-          <div className="flex items-center justify-center gap-4 sm:gap-8 flex-wrap">
-            {evolutionTree.map((evo, idx) => (
-              <React.Fragment key={evo.name}>
-                {evo.condition && (
-                  <div className="flex flex-col items-center">
-                    <span className="text-[#00E5FF] font-black text-xl mb-1">&rarr;</span>
-                    <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-[#00E5FF] bg-[#00E5FF]/10 px-2.5 py-1 rounded-md border border-[#00E5FF]/30 max-w-[140px]">
-                      {evo.condition}
-                    </span>
-                  </div>
-                )}
-
-                <div
-                  onClick={() => navigate(`/pokemon/${evo.name}`)}
-                  className={`flex flex-col items-center p-4 rounded-2xl glass border cursor-pointer hover:scale-105 transition-all ${
-                    evo.name === data.name
-                      ? 'border-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.3)] bg-[#00E5FF]/10'
-                      : 'border-white/10 hover:border-white/30'
-                  }`}
-                >
-                  <img
-                    src={isShiny ? evo.shinyArtwork : evo.artwork}
-                    alt={evo.name}
-                    className="w-20 h-20 sm:w-24 sm:h-24 object-contain mb-2 drop-shadow-md"
-                  />
-                  <span className="text-xs font-black uppercase tracking-wider text-white">
-                    {evo.name.replace('-', ' ')}
-                  </span>
-                  <span className="text-[10px] font-mono text-gray-400">
-                    #{String(evo.id).padStart(4, '0')}
-                  </span>
-                </div>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Base Combat Statistics Chart */}
-      <div className="glass rounded-3xl p-6 sm:p-8 mb-8 border border-white/10">
-        <div className="flex items-center justify-between pb-4 mb-6 border-b border-white/10">
-          <h3 className="text-lg font-black uppercase tracking-wider text-white">
-            Combat Statistics Performance
-          </h3>
-          <div className="text-xs font-mono text-[#00E5FF] font-bold">
-            BST: {totalBST}
-          </div>
-        </div>
-
-        <div className="space-y-4 max-w-3xl mx-auto">
-          {data.stats.map((s) => {
-            const label = statNames[s.stat.name] || s.stat.name.toUpperCase();
-            const val = s.base_stat;
-            const pct = Math.min((val / 255) * 100, 100);
-
-            return (
-              <div key={s.stat.name}>
-                <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-200 mb-1">
-                  <span>{label}</span>
-                  <span className="text-[#00E5FF] font-mono">{val}</span>
-                </div>
-                <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.75, ease: 'easeOut' }}
-                    className="bg-gradient-to-r from-blue-500 via-[#00E5FF] to-cyan-300 h-full rounded-full shadow-[0_0_12px_rgba(0,229,255,0.4)]"
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Complete Move Pool with Learn Methods */}
+      {/* Tactical Movepool Matrix */}
       <div className="glass rounded-3xl p-6 sm:p-8 border border-white/10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-white/10 gap-4">
           <div>
-            <h3 className="text-lg font-black uppercase tracking-wider text-white">
+            <h3 className="text-base font-black uppercase tracking-wider text-white">
               Tactical Movepool Matrix
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Full move library segmented by acquisition vector.
+              Full move library categorized by acquisition vector.
             </p>
           </div>
-
-          <div className="w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Search moves..."
-              value={moveSearch}
-              onChange={(e) => setMoveSearch(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs focus:outline-none focus:border-[#00E5FF]"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Search moves..."
+            value={moveSearch}
+            onChange={(e) => setMoveSearch(e.target.value)}
+            className="w-full sm:w-64 px-4 py-2 rounded-xl bg-black/40 border border-white/15 text-white text-xs focus:outline-none focus:border-[#00E5FF]"
+          />
         </div>
 
-        {/* Move Acquisition Tabs */}
+        {/* Learn Method Tabs */}
         <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
           {[
             { id: 'level-up', label: 'Level Up', count: categorizedMoves['level-up'].length },
@@ -585,7 +646,7 @@ const PokemonDetail = () => {
             <button
               key={tab.id}
               onClick={() => setActiveMoveTab(tab.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shrink-0 transition-all cursor-pointer border ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase shrink-0 transition-all cursor-pointer border ${
                 activeMoveTab === tab.id
                   ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.3)]'
                   : 'bg-white/5 text-gray-300 border-white/10 hover:text-white'
@@ -597,31 +658,22 @@ const PokemonDetail = () => {
           ))}
         </div>
 
-        {/* Moves Table / Grid */}
-        {displayedMoves.length === 0 ? (
-          <div className="text-center py-12 text-xs font-mono text-gray-400 uppercase tracking-widest">
-            No moves found for current filter.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[450px] overflow-y-auto pr-2">
-            {displayedMoves.map((m, idx) => (
-              <div
-                key={`${m.name}-${idx}`}
-                className="p-3 rounded-xl bg-black/25 border border-white/5 flex items-center justify-between"
-              >
+        {/* Move Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[420px] overflow-y-auto pr-2">
+          {(categorizedMoves[activeMoveTab] || [])
+            .filter((m) => m.name.toLowerCase().includes(moveSearch.toLowerCase().trim()))
+            .map((m, idx) => (
+              <div key={`${m.name}-${idx}`} className="p-3 rounded-xl bg-black/25 border border-white/5 flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-white">
-                    {m.name}
-                  </h4>
-                  <span className="text-[10px] font-mono text-gray-400 capitalize">
+                  <h4 className="text-xs font-bold uppercase text-white">{m.name}</h4>
+                  <span className="text-[10px] font-mono text-gray-400">
                     {activeMoveTab === 'level-up' ? `Lv. ${m.level}` : activeMoveTab}
                   </span>
                 </div>
                 <ChevronRight size={14} className="text-gray-500" />
               </div>
             ))}
-          </div>
-        )}
+        </div>
       </div>
     </motion.div>
   );

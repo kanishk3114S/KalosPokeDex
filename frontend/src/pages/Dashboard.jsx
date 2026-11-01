@@ -9,11 +9,15 @@ import {
   RotateCcw, 
   ArrowUpDown, 
   Grid3X3, 
-  Layers 
+  Layers,
+  Filter,
+  Zap,
+  Sliders
 } from 'lucide-react';
 import PokemonCard from '../components/PokemonCard';
 import { useFavorites } from '../context/FavoritesContext';
 import { TYPE_CONFIG, ASH_KALOS_POKEMON, KALOS_SORT_OPTIONS } from '../constants/kalosData';
+import { fuzzyMatchPokemon } from '../utils/fuzzySearch';
 import { 
   pageVariants, 
   staggerGridContainer, 
@@ -29,6 +33,8 @@ const Dashboard = () => {
   const [sortAttribute, setSortAttribute] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isDeepFilterOpen, setIsDeepFilterOpen] = useState(false);
+  const [minBST, setMinBST] = useState(0);
 
   const { isFavorite, favorites } = useFavorites();
 
@@ -91,13 +97,17 @@ const Dashboard = () => {
   const filteredAndSortedPokemon = useMemo(() => {
     let list = [...pokemon];
 
-    // Search query filter
+    // Fuzzy intelligent search (handles typos like 'charzard' -> 'charizard')
     if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase().trim();
-      list = list.filter((p) => 
-        p.name.toLowerCase().includes(q) || 
-        String(p.id).includes(q)
-      );
+      list = fuzzyMatchPokemon(list, searchTerm);
+    }
+
+    // Min Base Stat Total filter
+    if (minBST > 0) {
+      list = list.filter((p) => {
+        const bst = (p.hp || 0) + (p.attack || 0) + (p.defense || 0) + (p.speed || 0);
+        return bst >= minBST;
+      });
     }
 
     // Quick filter presets
@@ -127,12 +137,13 @@ const Dashboard = () => {
     });
 
     return list;
-  }, [pokemon, searchTerm, activeFilter, selectedType, sortAttribute, sortOrder, isFavorite]);
+  }, [pokemon, searchTerm, minBST, activeFilter, selectedType, sortAttribute, sortOrder, isFavorite]);
 
   const resetFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedType('all');
     setActiveFilter('all');
+    setMinBST(0);
     setSortAttribute('id');
     setSortOrder('asc');
   }, []);
@@ -294,8 +305,59 @@ const Dashboard = () => {
             >
               <ArrowUpDown size={15} className={sortOrder === 'desc' ? 'rotate-180 transition-transform' : ''} />
             </button>
+
+            {/* Deep BST Filter Button */}
+            <button
+              onClick={() => setIsDeepFilterOpen(!isDeepFilterOpen)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                isDeepFilterOpen || minBST > 0
+                  ? 'bg-[#00E5FF]/20 text-[#00E5FF] border-[#00E5FF]'
+                  : 'bg-black/40 border-white/15 text-gray-200 hover:border-white/30'
+              }`}
+            >
+              <Filter size={13} />
+              <span>BST Filter</span>
+            </button>
           </div>
         </div>
+
+        {/* Deep BST Filter Drawer */}
+        <AnimatePresence>
+          {isDeepFilterOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 pt-4 border-t border-white/10 overflow-hidden"
+            >
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-black/30 border border-white/10">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono font-bold text-gray-300 uppercase">
+                    Minimum Stat Total (BST):
+                  </span>
+                  <span className="text-sm font-mono font-black text-[#00E5FF]">{minBST > 0 ? `≥ ${minBST}` : 'All (No Limit)'}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="600"
+                  step="25"
+                  value={minBST}
+                  onChange={(e) => setMinBST(parseInt(e.target.value, 10))}
+                  className="w-full sm:w-64 accent-[#00E5FF] h-2 rounded-lg bg-white/10 cursor-pointer"
+                />
+                {minBST > 0 && (
+                  <button
+                    onClick={() => setMinBST(0)}
+                    className="text-xs text-gray-400 hover:text-white underline cursor-pointer"
+                  >
+                    Reset BST
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 18 Elemental Type Pills Carousel */}
         <div className="mt-5 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
